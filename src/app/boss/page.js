@@ -16,6 +16,9 @@ const Boss = ({}) => {
             if(WebSettingsManager.getValue("khazana_enabled")){
                 router.push(`boss/khazana/${batch_name}`);
             }
+            else{
+                router.push(`boss/batch/${batch_name}`)
+            }
         }
     },[]);
 

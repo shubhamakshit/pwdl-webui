@@ -25,7 +25,7 @@ class WebSettingsManager {
 
     static defaultSettings = {
         api:{
-            value : "",
+            value : "http://localhost:5000",
             tooltip: "API URL"
 
         },

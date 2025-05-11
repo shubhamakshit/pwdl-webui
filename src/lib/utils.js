@@ -124,6 +124,39 @@ class Utils{
         return command;
     };
 
+    static a11yProps(index) {
+        return {
+            id: `simple-tab-${index}`,
+            'aria-controls': `simple-tabpanel-${index}`,
+        };
+    }
+
+    /**
+     * Generates curl commands to download files from a list of URLs with specified filenames.
+     *
+     * @param {Array<Object>} files - An array of objects, where each object has a 'link' and a 'name' property.
+     * @param {string} files[].link - The URL of the file to download.
+     * @param {string} files[].name - The desired filename for the downloaded file.
+     * @returns {Array<string>} An array of curl commands.
+     */
+    static curlWithFileName = (files) => {
+        if (!Array.isArray(files)) {
+            console.error("Input must be an array.");
+            return [];
+        }
+
+        return files.map(file => {
+            if (file && file.link && file.name) {
+                // Use the -o flag to specify the output filename
+                return `curl -o "${file.name}" "${file.link}"`;
+            } else {
+                console.warn("Skipping invalid file object:", file);
+                return null; // Or handle the error as appropriate
+            }
+        }).filter(command => command !== null); // Filter out any null entries from invalid objects
+    };
+
+
     // /**
     //  * Copies the given text to the clipboard.
     //  *

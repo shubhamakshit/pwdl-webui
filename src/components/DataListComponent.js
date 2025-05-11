@@ -6,6 +6,7 @@ import DataCard from "@/components/Cards/DataCard";
 import LectureCard from "@/components/Cards/LectureCard";
 import FullScreenLoader from "@/components/FullScreenLoader";
 import useSelection from "@/hooks/useSelection";
+import NotesCard from "@/components/Cards/NotesCard";
 
 /**
  * A reusable component to fetch and display lists of data or lectures
@@ -18,7 +19,7 @@ import useSelection from "@/hooks/useSelection";
  * @param {string} props.noDataMessage - Message to display when no data is available
  * @param {string} props.loadingMessage - Message to display while loading
  * @param {string} props.errorMessage - Message to display when an error occurs
- * @param {string} props.type - Type of data ('data' or 'lecture')
+ * @param {string} props.type - Type of data ('data' or 'lecture' or 'notes')
  * @param {boolean} props.selectable - Whether items can be selected (primarily for lectures)
  * @param {Function} props.onSelectionChange - Callback when selection changes
  * @param {Object} props.gridSize - Grid item size configuration
@@ -47,6 +48,7 @@ const DataListComponent = ({
 
     // Determine if we're in lecture mode
     const isLectureMode = useMemo(() => type === 'lecture', [type]);
+    const isNotesMode = useMemo(() => type === 'notes', [type]);
 
     // Process image URLs for different data structures
     const getImageUrl = (item) => {
@@ -156,6 +158,22 @@ const DataListComponent = ({
                                     gridSize={gridSize}
                                 />
                             );
+                        }
+
+                        if(isNotesMode){
+                            return (
+                                <NotesCard
+                                    key={item.id || item.slug || index}
+                                    data={item}
+                                    image={imageUrl}
+                                    onClick={() => onCardClick(item)}
+                                    fields={fields}
+                                    selectable={selectable}
+                                    onSelect={selection.handleSelect}
+                                    selected={selection.isSelected(item)}
+                                    gridSize={gridSize}
+                                />
+                            )
                         }
 
                         return (
