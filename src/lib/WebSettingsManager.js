@@ -30,7 +30,7 @@ class WebSettingsManager {
 
         },
         batch_name: {
-            value: ["default-batch-1", "default-batch-2"],
+            value: ["lakshya-neet-2025-416888", "12th-neet-khazana-370407", "arjuna-neet-2024-683082", "11th-neet-khazana-553123"],
             tooltip: "Batch Name"
         },
         khazana_enabled: {
