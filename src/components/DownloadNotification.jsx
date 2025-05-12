@@ -1,80 +1,88 @@
-import React, { useEffect } from 'react';
-import DownloadIcon from '@mui/icons-material/Download';
+import React, { useEffect, useState } from 'react';
 import { Button, Snackbar, Alert, IconButton } from '@mui/material';
+import DownloadIcon from '@mui/icons-material/Download';
 import CloseIcon from '@mui/icons-material/Close';
 
 const DownloadNotification = ({
-                                  open,
-                                  onClose,
-                                  message,
-                                  downloadUrl,
-                                  downloadName,
-                                  severity = 'success'
-                              }) => {
-    useEffect(() => {
-        // Request notification permission when component mounts
-        if ('Notification' in window) {
-            Notification.requestPermission();
-        }
-    }, []);
+  open,
+  onClose,
+  message,
+  downloadUrl,
+  downloadName,
+  severity = 'success'
+}) => {
+  const [notificationPermission, setNotificationPermission] = useState('default');
 
-    const showNotification = () => {
-        if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('Download Complete', {
-                body: message,
-                icon: '/path-to-your-icon.png' // Add your notification icon
-            });
-        }
-    };
+  useEffect(() => {
+    // Check notification permission when component mounts
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+      
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+          setNotificationPermission(permission);
+        });
+      }
+    }
+  }, []);
 
-    useEffect(() => {
-        if (open) {
-            showNotification();
-        }
-    }, [open, message]);
+  const showNotification = () => {
+    // Use the Notification API only if supported and permission is granted
+    if ('serviceWorker' in navigator && 'PushManager' in window && notificationPermission === 'granted') {
+      // This should be handled by a registered service worker
+      // For demo/development purposes, fall back to the snackbar only
+      console.log('Push notification would show here if service worker is registered');
+    }
+  };
 
-    const action = (
-        <>
-            {downloadUrl && (
-                <Button
-                    color="primary"
-                    size="small"
-                    startIcon={<DownloadIcon />}
-                    onClick={() => window.open(downloadUrl, '_blank')}
-                    sx={{ mr: 1 }}
-                >
-                    Download
-                </Button>
-            )}
-            <IconButton
-                size="small"
-                aria-label="close"
-                color="inherit"
-                onClick={onClose}
-            >
-                <CloseIcon fontSize="small" />
-            </IconButton>
-        </>
-    );
+  useEffect(() => {
+    if (open) {
+      showNotification();
+    }
+  }, [open, message]);
 
-    return (
-        <Snackbar
-            open={open}
-            autoHideDuration={6000}
-            onClose={onClose}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+  const action = (
+    <>
+      {downloadUrl && (
+        <Button
+          color="primary"
+          size="small"
+          startIcon={<DownloadIcon />}
+          onClick={() => window.open(downloadUrl, '_blank')}
+          sx={{ mr: 1 }}
         >
-            <Alert
-                onClose={onClose}
-                severity={severity}
-                variant="outlined"
-                action={action}
-                sx={{ width: '100%' }}
-            >
-                {message}
-            </Alert>
-        </Snackbar>
-    );
+          Download
+        </Button>
+      )}
+      <IconButton
+        size="small"
+        aria-label="close"
+        color="inherit"
+        onClick={onClose}
+      >
+        <CloseIcon fontSize="small" />
+      </IconButton>
+    </>
+  );
+
+  return (
+    <Snackbar
+      open={open}
+      autoHideDuration={6000}
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+    >
+      <Alert
+        onClose={onClose}
+        severity={severity}
+        variant="outlined"
+        action={action}
+        sx={{ width: '100%' }}
+      >
+        {message}
+      </Alert>
+    </Snackbar>
+  );
 };
 
 export default DownloadNotification;
