@@ -88,7 +88,7 @@ const BatchDetailsPage = () => {
             handleSelection: handleNoteSelection,
             handleDownload: handleNotesDownload,
             onCardClick: handleLectureClick,
-            fields: ["slug"]
+            fields: []
         }
         // Easy to add more tabs here in the future
     ], [

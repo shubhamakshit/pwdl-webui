@@ -40,7 +40,7 @@ const LectureCard = ({
             <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, mb: 1 }}>
                 <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} color="action" />
                 <Typography variant="body2" color="textSecondary">
-                    {data.duration || data.length || data?.videoDetails?.duration|| "Unknown"} min
+                    {data.duration || data.length || data?.videoDetails?.duration|| data?.content[0]?.videoDetails?.duration|| "Unknown"}
                 </Typography>
             </Box>
 
