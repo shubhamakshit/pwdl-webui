@@ -6,16 +6,19 @@ import LocalHandler from "@/localHandler";
 import Downloader from "@/Server/Downloader";
 import DownloadIcon from "@mui/icons-material/Download";
 import TerminalOutput from "@/components/TerminalOutput";
+import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import Utils from "@/lib/utils";
 import PWAlert from "@/components/PWAlert";
 import Stack from "@mui/material/Stack";
 import { useSearchParams } from 'next/navigation';
 import ListAltIcon from '@mui/icons-material/ListAlt';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import API from "@/Server/api";
 import DownloadNotification from "@/components/DownloadNotification";
 
 const FullDetailsWithoutSuspense = () => {
     const [listOfDetails, changeListOfDetails] = useState([]);
+    const [isInverted,setIsInverted] = useState(false);
     const theme = useTheme();
     const client_id = LocalHandler.getClientId();
     const [session_id, setSessionId] = useState(LocalHandler.getSessionId(true));
@@ -254,6 +257,15 @@ const FullDetailsWithoutSuspense = () => {
         setNotificationOpen(false);
     };
 
+    const invertOrder = () => {
+        changeListOfDetails(old => {
+            const newList = [...old];
+            newList.reverse();
+            return newList;
+        });
+        setIsInverted(!isInverted);
+    };
+
     return (
         <Suspense fallback={<CircularProgress color="primary" />}>
             <>
@@ -272,6 +284,17 @@ const FullDetailsWithoutSuspense = () => {
                                 onClick={() => add()}
                                 aria-label="Add new item">
                                 Add
+                            </Button>
+                        </Grid>
+                        <Grid item size={3}>
+                            <Button
+                                fullWidth
+                                disableRipple
+                                startIcon={isInverted ? <CheckBoxIcon/>:<CheckBoxOutlineBlankIcon/>}
+                                variant={isInverted? "contained":"outlined"}
+                                onClick={() => invertOrder()}
+                                aria-label="Invert">
+                                Invert
                             </Button>
                         </Grid>
                     </Grid>
@@ -293,7 +316,7 @@ const FullDetailsWithoutSuspense = () => {
                                         position: "absolute",
                                         top: "-10px",
                                         left: "10px",
-                                        backgroundColor: `${theme.palette.background.paper}`,
+                                        backgroundColor: `${theme.palette.background.default}`,
                                         padding: "0",
                                         fontSize: "0.9rem",         // Adjust size as needed
                                         fontFamily: "'Roboto', sans-serif", // Change font family
@@ -302,7 +325,9 @@ const FullDetailsWithoutSuspense = () => {
                                         letterSpacing: "0.5px",     // Add spacing between letters
                                         fontStyle: "normal"         // Normal, italic, etc.
                                     }
-                                }} key={details.id}>{details.element}</Grid>
+                                }} key={details.id}>
+                                    {details.element}
+                                </Grid>
                             ))
                         }
                         <Grid item size={12}>

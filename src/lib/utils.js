@@ -147,8 +147,8 @@ class Utils{
 
         return files.map(file => {
             if (file && file.link && file.name) {
-                // Use the -o flag to specify the output filename
-                return `curl -o "${file.name}" "${file.link}"`;
+                // Use the -L flag to follow redirects and -o flag to specify the output filename
+                return `curl -L -o "${file.name}" "${file.link}"`;
             } else {
                 console.warn("Skipping invalid file object:", file);
                 return null; // Or handle the error as appropriate

@@ -100,7 +100,7 @@ const DataListComponent = ({
         if (selectable) {
             onSelectionChange(selection.selectedItemsData);
         }
-    }, [selection.selectedItemsData, onSelectionChange, selectable]);
+    }, [selection.selectedItemsData,  selectable]);
 
     if (isLoading) {
         return <FullScreenLoader />;

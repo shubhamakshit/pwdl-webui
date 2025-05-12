@@ -1,74 +1,168 @@
-import { Box, CardContent, Typography, Chip } from "@mui/material";
-import PlayCircleIcon from "@mui/icons-material/PlayCircle";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
+"use client";
+import {Box, CardContent, Typography, Chip, Button, Grid, Paper} from "@mui/material";
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import DownloadIcon from '@mui/icons-material/Download';
 import BaseCard from "./BaseCard";
+import Stack from "@mui/material/Stack"; // Ensure Stack is imported
 
-/**
- * A specialized card component for displaying lecture information
- *
- * @param {Object} props - Component props
- * @param {Object} props.data - The lecture data object to display
- * @param {Function} props.onClick - Function to call when the card is clicked
- * @param {string} props.image - Optional image URL to display
- * @param {boolean} props.selectable - Whether the lecture can be selected
- * @param {Function} props.onSelect - Function to call when the lecture is selected/deselected
- * @param {boolean} props.selected - Whether the lecture is initially selected
- * @param {Array<string>} props.fields - Array of field names to display dynamically
- * @returns {JSX.Element} - The rendered component
- */
 const NotesCard = ({
-                         data,
-                         onClick,
-                         image,
-                         selectable = false,
-                         onSelect = () => {},
-                         selected = false,
-                         fields = [],
-                         gridSize
-                     }) => {
-    // Custom content renderer for lectures
-    const renderLectureContent = (data) => (
-        <CardContent sx={{ flexGrow: 1 }}>
-            <Typography variant="h6" gutterBottom>
-                {data?.homeworks[0].attachments[0].name || null}
-            </Typography>
+                       data,
+                       onClick,
+                       image,
+                       selectable = false,
+                       onSelect = () => {},
+                       selected = false,
+                       fields = [],
+                       gridSize
+                   }) => {
+    const handleDownloadClick = (e, downloadLink) => {
+        e.stopPropagation();
+        if (downloadLink) {
+            window.open(downloadLink, '_blank');
+        } else {
+            console.warn("No download link available for this item.");
+        }
+    };
 
-            {/*<Typography variant="body2" color="textSecondary" gutterBottom noWrap>*/}
-            {/*    {data?.homeworks[0].attachments[0].name || null}*/}
-            {/*</Typography>*/}
+    const renderLectureContent = (data) => {
+        const downloadLink = data?.homeworks?.[0]?.attachments?.[0]?.link || data?.content?.[0]?.file?.link;
+        const fileName = data?.homeworks?.[0]?.attachments?.[0]?.name || data?.content?.[0]?.file?.name || "Downloadable File";
 
-            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, mb: 1 }}>
-                <PictureAsPdfIcon fontSize="small" sx={{ mr: 0.5 }} color="action" />
-                <Typography variant="body2" color="textSecondary">
-                    {data?.homeworks[0].attachments[0].link || data.length || data?.videoDetails?.duration|| "Unknown"}
+        return (
+            <CardContent
+                sx={{
+                    flexGrow: 1,
+                    p: 3, // Increased padding
+                    '&:last-child': { pb: 3 } // Override MUI's default last-child padding
+                }}
+            >
+                <Typography
+                    variant="h6"
+                    gutterBottom
+                    sx={{
+                        fontWeight: 600,
+                        fontSize: '1.1rem',
+                        color: 'primary.main',
+                        mb: 2
+                    }}
+                >
+                    {data?.content?.[0]?.text || data?.homeworks?.[0]?.attachments?.[0]?.name || "Untitled"}
                 </Typography>
-            </Box>
 
-            {data.tags && (
-                <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {data?.tags.slice(0, 2).map((tag, idx) => (
-                        <Chip
-                            key={idx}
-                            label={tag?.name || tag}
-                            size="small"
-                            variant="outlined"
-                            sx={{ fontSize: '0.7rem' }}
-                        />
-                    ))}
-                </Box>
-            )}
+                {downloadLink && (
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            p: 2,
+                            bgcolor: 'background.paper',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 2, // Or use theme.shape.borderRadius for consistency
+                            mb: 2,
+                        }}
+                    >
+                        <Stack
+                            direction="row"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            spacing={2} // Spacing between file info and download button
+                        >
+                            <Stack
+                                direction="row"
+                                alignItems="center"
+                                spacing={1.5} // Spacing between icon and file name
+                                sx={{ overflow: 'hidden' }} // Ensures text ellipsis works
+                            >
+                                <PictureAsPdfIcon
+                                    sx={{
+                                        color: 'error.main', // Consistent with original
+                                        fontSize: '2rem',    // Consistent with original, consider '1.75rem' for slightly smaller
+                                        flexShrink: 0,       // Prevents icon from shrinking
+                                    }}
+                                />
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        fontWeight: 500,
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        color: 'text.primary',
+                                    }}
+                                    title={fileName} // Show full file name on hover
+                                >
+                                    {fileName}
+                                </Typography>
+                            </Stack>
+                            <Button
+                                onClick={(e) => handleDownloadClick(e, downloadLink)}
+                                variant="contained"
+                                startIcon={<DownloadIcon />}
+                                size="small"
+                                sx={{ flexShrink: 0 }} // Prevents button from shrinking
+                            >
+                                Download
+                            </Button>
+                        </Stack>
+                    </Paper>
+                )}
 
-            {fields.map((field, index) => (
-                <Typography key={index} variant="body2" color="textSecondary">
-                    {field}:{" "}
-                    <Box component="span" sx={{ fontFamily: "monospace" }}>
-                        {data[field] !== undefined ? data[field] : "N/A"}
+                {data?.tags && data.tags.length > 0 && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                        {data.tags.slice(0, 2).map((tag, idx) => (
+                            <Chip
+                                key={idx}
+                                label={tag?.name || tag || "Unknown Tag"}
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                                sx={{
+                                    borderRadius: '6px',
+                                    fontSize: '0.75rem',
+                                    height: '24px',
+                                    '& .MuiChip-label': {
+                                        px: 1
+                                    }
+                                }}
+                            />
+                        ))}
                     </Box>
-                </Typography>
-            ))}
-        </CardContent>
-    );
+                )}
+
+                {fields?.length > 0 && (
+                    // Consider using Stack here as well if items are simple key-value pairs
+                    // For now, keeping Grid as per original structure for this part
+                    <Grid container spacing={1}> {/* Changed from <Grid spacing={1}> to <Grid container spacing={1}> for proper grid behavior */}
+                        {fields?.map((field, index) => (
+                            <Grid item xs={12} key={index}> {/* Wrap Typography in Grid item for proper spacing and layout within container */}
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        color: 'text.secondary',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 0.5, // Adjusted gap for better visual
+                                    }}
+                                >
+                                    <Box component="span" sx={{ fontWeight: 500 }}>{field}:</Box> {/* Use Box for styling consistency */}
+                                    <Box
+                                        component="span"
+                                        sx={{
+                                            fontFamily: "monospace",
+                                            color: 'text.primary',
+                                            wordBreak: 'break-all' // If value can be long
+                                        }}
+                                    >
+                                        {data?.[field] !== undefined && data?.[field] !== null ? String(data?.[field]) : "N/A"}
+                                    </Box>
+                                </Typography>
+                            </Grid>
+                        ))}
+                    </Grid>
+                )}
+            </CardContent>
+        );
+    };
 
     return (
         <BaseCard
