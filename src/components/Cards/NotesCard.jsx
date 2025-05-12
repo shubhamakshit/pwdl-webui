@@ -1,9 +1,9 @@
 "use client";
-import {Box, CardContent, Typography, Chip, Button, Grid, Paper} from "@mui/material";
+import {Box, CardContent, Typography, Chip, Button, Grid, Paper, IconButton} from "@mui/material"; // Added IconButton
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DownloadIcon from '@mui/icons-material/Download';
 import BaseCard from "./BaseCard";
-import Stack from "@mui/material/Stack"; // Ensure Stack is imported
+import Stack from "@mui/material/Stack";
 
 const NotesCard = ({
                        data,
@@ -16,7 +16,7 @@ const NotesCard = ({
                        gridSize
                    }) => {
     const handleDownloadClick = (e, downloadLink) => {
-        e.stopPropagation();
+        e.stopPropagation(); // Prevent card click when clicking download
         if (downloadLink) {
             window.open(downloadLink, '_blank');
         } else {
@@ -32,8 +32,8 @@ const NotesCard = ({
             <CardContent
                 sx={{
                     flexGrow: 1,
-                    p: 3, // Increased padding
-                    '&:last-child': { pb: 3 } // Override MUI's default last-child padding
+                    p: 3,
+                    '&:last-child': { pb: 3 }
                 }}
             >
                 <Typography
@@ -57,7 +57,7 @@ const NotesCard = ({
                             bgcolor: 'background.paper',
                             border: '1px solid',
                             borderColor: 'divider',
-                            borderRadius: 2, // Or use theme.shape.borderRadius for consistency
+                            borderRadius: 2,
                             mb: 2,
                         }}
                     >
@@ -65,19 +65,19 @@ const NotesCard = ({
                             direction="row"
                             justifyContent="space-between"
                             alignItems="center"
-                            spacing={2} // Spacing between file info and download button
+                            spacing={2}
                         >
                             <Stack
                                 direction="row"
                                 alignItems="center"
-                                spacing={1.5} // Spacing between icon and file name
-                                sx={{ overflow: 'hidden' }} // Ensures text ellipsis works
+                                spacing={1.5}
+                                sx={{ overflow: 'hidden' }}
                             >
                                 <PictureAsPdfIcon
                                     sx={{
-                                        color: 'error.main', // Consistent with original
-                                        fontSize: '2rem',    // Consistent with original, consider '1.75rem' for slightly smaller
-                                        flexShrink: 0,       // Prevents icon from shrinking
+                                        color: 'error.main',
+                                        fontSize: '2rem',
+                                        flexShrink: 0,
                                     }}
                                 />
                                 <Typography
@@ -89,20 +89,26 @@ const NotesCard = ({
                                         textOverflow: 'ellipsis',
                                         color: 'text.primary',
                                     }}
-                                    title={fileName} // Show full file name on hover
+                                    title={fileName}
                                 >
                                     {fileName}
                                 </Typography>
                             </Stack>
-                            <Button
+                            <IconButton
+                                aria-label={`Download ${fileName}`} // More specific aria-label
+                                title={`Download ${fileName}`}      // Tooltip for users
                                 onClick={(e) => handleDownloadClick(e, downloadLink)}
-                                variant="contained"
-                                startIcon={<DownloadIcon />}
-                                size="small"
-                                sx={{ flexShrink: 0 }} // Prevents button from shrinking
+                                size="small" // Consistent with previous button size
+                                sx={{
+                                    flexShrink: 0,
+                                    // If you want it to have a contained look, you can add:
+                                    // bgcolor: 'primary.main',
+                                    // color: 'primary.contrastText',
+                                    // '&:hover': { bgcolor: 'primary.dark' }
+                                }}
                             >
-                                Download
-                            </Button>
+                                <DownloadIcon fontSize="inherit" /> {/* Icon will inherit size from IconButton */}
+                            </IconButton>
                         </Stack>
                     </Paper>
                 )}
@@ -130,27 +136,25 @@ const NotesCard = ({
                 )}
 
                 {fields?.length > 0 && (
-                    // Consider using Stack here as well if items are simple key-value pairs
-                    // For now, keeping Grid as per original structure for this part
-                    <Grid container spacing={1}> {/* Changed from <Grid spacing={1}> to <Grid container spacing={1}> for proper grid behavior */}
+                    <Grid container spacing={1}>
                         {fields?.map((field, index) => (
-                            <Grid item xs={12} key={index}> {/* Wrap Typography in Grid item for proper spacing and layout within container */}
+                            <Grid item xs={12} key={index}>
                                 <Typography
                                     variant="body2"
                                     sx={{
                                         color: 'text.secondary',
                                         display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 0.5, // Adjusted gap for better visual
+                                        alignItems: 'flex-start', // Align items to the start for potentially multi-line values
+                                        gap: 0.5,
                                     }}
                                 >
-                                    <Box component="span" sx={{ fontWeight: 500 }}>{field}:</Box> {/* Use Box for styling consistency */}
+                                    <Box component="span" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{field}:</Box>
                                     <Box
                                         component="span"
                                         sx={{
                                             fontFamily: "monospace",
                                             color: 'text.primary',
-                                            wordBreak: 'break-all' // If value can be long
+                                            wordBreak: 'break-all'
                                         }}
                                     >
                                         {data?.[field] !== undefined && data?.[field] !== null ? String(data?.[field]) : "N/A"}
