@@ -1,11 +1,12 @@
 "use client";
 
 import { ThemeProvider, CssBaseline } from '@mui/material';
-import darkTheme from './theme';
+import theme from './theme';
+import WebSettingsManager from "@/lib/WebSettingsManager";
 
 export default function MUIProvider({ children }) {
     return (
-        <ThemeProvider theme={darkTheme}>
+        <ThemeProvider theme={ theme}>
             <CssBaseline />
             {children}
         </ThemeProvider>

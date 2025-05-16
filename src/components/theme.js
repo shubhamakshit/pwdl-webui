@@ -1,10 +1,7 @@
 import { createTheme,useTheme } from '@mui/material/styles';
+import WebSettingsManager from "@/lib/WebSettingsManager";
 
-const darkTheme = createTheme({
-    palette: {
-        mode: 'dark',
-    },
-});
+const darkTheme = createTheme(WebSettingsManager.getValue("custom_theme") || WebSettingsManager.defaultTheme);
 
 
 

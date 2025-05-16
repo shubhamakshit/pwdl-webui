@@ -64,9 +64,13 @@ const Details = ({onChange,onDelete,open,initState}) => {
                                                value={cmdDetailsState.name}
                                 />
                             </Grid>
-                            <Grid size={6}>
+                            <Grid size={{sm:12,md:12,lg:6}}>
                                 <Button
                                     size={"large"}
+                                    sx={{
+                                        fontFamily: "monospace",
+                                        height: "100%"
+                                    }}
                                     variant={khazanaEnabledDataField ? "outlined" : "outlined"}
                                     fullWidth
                                     disableRipple
@@ -78,9 +82,13 @@ const Details = ({onChange,onDelete,open,initState}) => {
                                     Khazana
                                 </Button>
                             </Grid>
-                            <Grid size={6}>
+                            <Grid size={{sm:12,md:12,lg:6}}>
                                 <Button
                                     size={"large"}
+                                    sx={{
+                                        fontFamily: "monospace",
+                                        height: "100%"
+                                    }}
                                     variant="outlined"
                                     color={"error"}
                                     fullWidth

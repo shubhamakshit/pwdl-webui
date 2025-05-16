@@ -247,6 +247,189 @@ class Utils{
         return key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
     };
 
+// Helper function to get the first word (alphanumeric, underscore, hyphen)
+    // Modified to match characters (letters, underscore, hyphen) from the start
+    // until a digit or other non-allowed character is encountered.
+    static getFirstWord(str) {
+        if (!str) return 'downloaded_data';
+        // Match the beginning (^), then one or more characters ([a-zA-Z_-]+)
+        // that are letters (a-z, A-Z), underscore (_), or hyphen (-).
+        // The match stops at the first character that is NOT one of these,
+        // which includes digits (0-9), spaces, and other symbols.
+        const match = str.match(/^([a-zA-Z_-]+)/);
+        // If a match is found, return the captured group (the sequence of allowed characters).
+        // If no match is found (e.g., string starts with a number or space), return the default.
+        return match ? match[1] : 'downloaded_data';
+    }
+
+    // Helper function to convert an array of objects into CSV format
+    static convertToCSV(dataArray) {
+        if (!dataArray || dataArray.length === 0) {
+            return "";
+        }
+
+        // Use keys from the first object as headers. Assumes consistent structure.
+        const headers = Object.keys(dataArray[0]);
+        const csvRows = [headers.join(',')];
+
+        dataArray.forEach(item => {
+            const values = headers.map(header => {
+                // Get value, default to empty string for null/undefined
+                let value = item[header] === null || item[header] === undefined ? '' : String(item[header]);
+                // Escape double quotes by doubling them, and wrap value in quotes if it contains comma, double quote, or newline.
+                if (value.includes('"') || value.includes(',') || value.includes('\n')) {
+                    value = `"${value.replace(/"/g, '""')}"`;
+                }
+                return value;
+            });
+            csvRows.push(values.join(','));
+        });
+        return csvRows.join('\n');
+    }
+
+
+    /**
+     * Generates a bash one-liner command string to create a CSV file and run the PWD L script.
+     *
+     * @param {Array<Object>} listOfStates - An array of data objects to convert to CSV.
+     * Each object is expected to have properties like name, batch_name, id,
+     * and potentially topic_name, lecture_url, etc.
+     * @param {object} [options={}] - Optional parameters.
+     * @param {string} [options.pythonCmd="python"] - The command to use for the Python interpreter (e.g., "python3", "py.exe"). Defaults to "python".
+     * @param {string} [options.pwdlScriptPath="$HOME/pwdlv3/pwdl.py"] - The path to the PWD L Python script. Defaults to "$HOME/pwdlv3/pwdl.py".
+     * @returns {string} The bash one-liner command string, or an empty string if input is invalid or encoding fails.
+     */
+    static toPwdlCommand(listOfStates, options = {}) {
+        if (!Array.isArray(listOfStates) || listOfStates.length === 0) {
+            console.error("toPwdlCommand: Invalid input - listOfStates must be a non-empty array.");
+            return "";
+        }
+
+        const pythonCmdToUse = options.pythonCmd || "python3"; // Default to "python"
+        const pwdlScriptPathToUse = options.pwdlScriptPath || "$HOME/pwdlv3/pwdl.py"; // Default path relative to HOME
+
+        const firstItemName = listOfStates[0].name || '';
+        // Sanitize for directory name using the modified getFirstWord logic
+        const directoryName = Utils.getFirstWord(firstItemName).replace(/[^a-zA-Z0-9_\.-]/g, '_');
+        const csvFileName = "data.csv"; // Standard CSV file name
+
+        // Use the static helper method via the class name
+        const csvData = Utils.convertToCSV(listOfStates);
+        if (!csvData) {
+            console.error("toPwdlCommand: Failed to convert data to CSV.");
+            return "";
+        }
+
+        // Use standard btoa for Base64 encoding (browser environment)
+        // If using Node.js, you might need Buffer.from(str).toString('base64')
+        const base64Encode = typeof btoa === 'function' ? btoa : (str) => {
+            if (typeof Buffer !== 'undefined') {
+                return Buffer.from(str).toString('base64');
+            } else {
+                console.error("Base64 encoding function (btoa or Buffer) not available.");
+                return ""; // Cannot encode without base64 support
+            }
+        };
+
+
+        // Escape CSV data for use in bash 'cat <<EOF' here-doc.
+        // Escape \, `, $ characters to prevent premature interpretation by the shell reading the here-doc content.
+        const escapedCsvData = csvData.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+
+
+        // --- Construct the multi-line bash script content template ---
+        // Values from JS options will be substituted into this template.
+        // NOTE: Substituting values directly like this can be risky if the values
+        // contain characters that have meaning in bash string literals or commands.
+        // We assume basic command names and file paths are used which are generally safe.
+        const multiLineScriptTemplate = `#!/bin/bash
+# This script is generated by the Utils.toPwdlCommand JavaScript function.
+# It will be created and executed in the current directory.
+
+# Set strict mode for better error handling
+set -euo pipefail
+# set -x # Uncomment for debugging (prints commands as they are executed)
+
+# Use the Python interpreter command provided by the generating function
+PYTHON_CMD="{{PYTHON_CMD}}"
+# Use the PWD L script path provided by the generating function
+PYTHON_SCRIPT="{{PYTHON_SCRIPT}}"
+
+# The directory for the CSV data, relative to where this script is run (the current directory)
+DIR_NAME="${directoryName}"
+CSV_FILE_NAME="${csvFileName}"
+# Full path to the CSV file within the subdirectory
+CSV_FILE_PATH="\${DIR_NAME}/\${CSV_FILE_NAME}"
+
+# Create the data subdirectory if it doesn't exist
+echo "Creating data directory: \${DIR_NAME}..."
+mkdir -p "\${DIR_NAME}"
+
+# Create CSV file using a here-doc with a unique marker inside the data subdirectory
+echo "Creating CSV file: \${CSV_FILE_PATH}..."
+cat << 'EOF_PWD_L_CSV_DATA' > "\${CSV_FILE_PATH}"
+${escapedCsvData}
+EOF_PWD_L_CSV_DATA
+
+# Check if CSV file was created successfully
+if [ -f "\${CSV_FILE_PATH}" ]; then
+    echo "CSV file created successfully: \${CSV_FILE_PATH}"
+    echo "Running PWD L command..."
+    # Check if the Python script exists at the expected path before executing
+    if [ ! -f "$PYTHON_SCRIPT" ]; then
+        echo "Error: PWD L script not found at expected path: $PYTHON_SCRIPT"
+        echo "Please verify the path or manually edit the generated script file."
+        exit 1 # Exit the script if pwdl.py is not found
+    fi
+
+    # Execute the pwdl script using the specified interpreter and path, passing the data directory using --dir.
+    # --- EXECUTE PWD L COMMAND ---
+    "$PYTHON_CMD" "$PYTHON_SCRIPT" --dir "\${DIR_NAME}" --csv-file "\${CSV_FILE_PATH}" --verbose
+    # ---------------------------
+
+    # Check the exit status of the pwdl command
+    if [ $? -eq 0 ]; then
+        echo "PWD L completed successfully."
+    else
+        echo "PWD L failed (exit code $?). Please check the output above."
+        exit 1 # Propagate pwdl's failure as script failure
+    fi
+else
+    echo "Error: Failed to create CSV file at \${CSV_FILE_PATH}."
+    exit 1 # Exit with error code indicating file creation failed
+fi
+
+echo "Script finished."
+`;
+        // Using a unique EOF marker for the here-doc ('EOF_PWD_L_CSV_DATA') helps prevent conflicts
+        // if the CSV data itself contains the string 'EOF'.
+
+        // --- Substitute values into the template ---
+        let finalMultiLineScript = multiLineScriptTemplate;
+        finalMultiLineScript = finalMultiLineScript.replace('{{PYTHON_CMD}}', pythonCmdToUse);
+        finalMultiLineScript = finalMultiLineScript.replace('{{PYTHON_SCRIPT}}', pwdlScriptPathToUse);
+
+
+        // --- Encode the final multi-line script in Base64 ---
+        const base64Script = base64Encode(finalMultiLineScript);
+
+        if (!base64Script) {
+            return ""; // Return empty string if encoding failed
+        }
+
+        // --- Construct the final bash one-liner command ---
+        // This command will:
+        // 1. Use mktemp to create a unique temporary script file name in the current directory (./).
+        // 2. Decode the base64 string and save it to the temporary file.
+        // 3. Make the temporary script file executable using chmod +x.
+        // 4. Execute the temporary script using bash.
+        // 5. Remove the temporary script file *after* the bash execution finishes (using ;),
+        //    regardless of whether the bash script succeeded or failed.
+        // Using '&&' ensures steps 1-4 run only if the previous one succeeded.
+        const oneLinerCommand = `SCRIPT_FILE=$(mktemp ./run_pwdl_script.XXXXXX.sh) && echo '${base64Script}' | base64 -d > "$SCRIPT_FILE" && chmod +x "$SCRIPT_FILE" && bash "$SCRIPT_FILE" ; rm "$SCRIPT_FILE"`;
+
+        return oneLinerCommand;
+    }
 
 
 

@@ -85,11 +85,15 @@ export default function Navbar() {
                     maxWidth: '90%',
                 },
             }}>
-                <Stack spacing={2} p={1} >
+                <List spacing={2} p={1} >
                     {
-                        links.map((link) => (<Button href={link.href} p={2} key={link.href} startIcon={link.icon} fullWidth variant={"text"}>{link.label} </Button>))
+                        links.map((link) => (
+                            <ListItem key={link.href}>
+                                <Button href={link.href} p={2}  startIcon={link.icon} fullWidth  disableElevation disableRipple variant={"text"}>{link.label} </Button>
+                            </ListItem>
+                        ))
                     }
-                </Stack>
+                </List>
             </Drawer>
         </Box>
     );

@@ -1,5 +1,5 @@
 "use client";
-import {useEffect, useState, useMemo, Suspense} from "react";
+import {useEffect, useState, useMemo, Suspense, useCallback} from "react";
 import Details from "@/components/Details";
 import {Box, Button, Grid, Paper, useTheme, CircularProgress} from "@mui/material";
 import LocalHandler from "@/localHandler";
@@ -15,6 +15,11 @@ import ListAltIcon from '@mui/icons-material/ListAlt';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import API from "@/Server/api";
 import DownloadNotification from "@/components/DownloadNotification";
+import CodeIcon from '@mui/icons-material/Code';
+import AddIcon from "@mui/icons-material/Add";
+import copyUtils, {CopyUtils} from "@/lib/copyUtils";
+import SimpleSnackbar from "@/components/SimpleSnackbar";
+import FullScreenLoader from "@/components/FullScreenLoader";
 
 const FullDetailsWithoutSuspense = () => {
     const [listOfDetails, changeListOfDetails] = useState([]);
@@ -43,6 +48,8 @@ const FullDetailsWithoutSuspense = () => {
         downloadName: '',
         severity: 'success'
     });
+    const [snackBarMessage,setSnackBarMessga] = useState("");
+    const [snackOpen,setSnackOpen] = useState(false);
 
     const areAllValid = useMemo(() =>
             (listOfDetails.every(detail =>
@@ -51,6 +58,11 @@ const FullDetailsWithoutSuspense = () => {
                 detail.state.batch_name !== ""
             ) && !downloading && listOfDetails.length > 0 )
         , [listOfDetails, downloading]);
+
+    const pwdlCommand = useMemo(() => {
+        if(listOfDetails.length > 0)
+        return Utils.toPwdlCommand(listOfDetails.map(detail => detail.state))
+    },[listOfDetails]);
 
     const setAlertMessage = (message, severity) => {
         setAlertData((prevState) => ({
@@ -92,6 +104,13 @@ const FullDetailsWithoutSuspense = () => {
             return newList;
         });
     };
+
+    const handleCopy = useCallback((item, event) => {
+        event?.stopPropagation();
+        const success = CopyUtils.copyToClipboard(item);
+        setSnackBarMessga(success ? "Copied to clipboard!" : "Failed to copy");
+        setSnackOpen(true);
+    }, []);
 
     const deleteElement = (id) => {
         changeListOfDetails(old => old.filter(item => item.id !== id));
@@ -269,37 +288,55 @@ const FullDetailsWithoutSuspense = () => {
     return (
         <Suspense fallback={<CircularProgress color="primary" />}>
             <>
-                <Stack spacing={2}>
+            {
+                listOfDetails.length > 0 ? null : <FullScreenLoader/>
+            }
+                <Stack spacing={2} p={1}>
                     {
                         alertData.message &&
                         (
                             <PWAlert {...alertData} open={alertOpen}>{alertData.message}</PWAlert>
                         )
                     }
-                    <Grid container spacing={2} p={0.5}>
-                        <Grid item size={3}>
-                            <Button
-                                fullWidth
-                                variant={"contained"}
-                                onClick={() => add()}
-                                aria-label="Add new item">
-                                Add
-                            </Button>
-                        </Grid>
-                        <Grid item size={3}>
-                            <Button
-                                fullWidth
-                                disableRipple
-                                startIcon={isInverted ? <CheckBoxIcon/>:<CheckBoxOutlineBlankIcon/>}
-                                variant={isInverted? "contained":"outlined"}
-                                onClick={() => invertOrder()}
-                                aria-label="Invert">
-                                Invert
-                            </Button>
-                        </Grid>
-                    </Grid>
                 </Stack>
-                <Paper sx={{
+                <Grid container spacing={2} p={1}>
+                    <Grid item size={{xs:12,sm:12,md:6,lg:3}}>
+                        <Button
+                            startIcon={<AddIcon/>}
+                            fullWidth
+                            variant={"outlined"}
+                            onClick={() => add()}
+                            aria-label="Add new item">
+                            Add
+                        </Button>
+                    </Grid>
+                    <Grid item size={{xs:12,sm:12,md:6,lg:3}}>
+                        <Button
+                            fullWidth
+                            disableRipple
+                            color={isInverted ? "secondary" : "primary"}
+                            startIcon={isInverted ? <CheckBoxIcon/>:<CheckBoxOutlineBlankIcon/>}
+                            variant={isInverted? "outlined":"outlined"}
+                            onClick={() => invertOrder()}
+                            aria-label="Invert">
+                            Invert
+                        </Button>
+                    </Grid>
+                    <Grid item size={{xs:12,sm:12,md:6,lg:3}}>
+                        <Button
+                            fullWidth
+                            disableRipple
+                            startIcon={<CodeIcon/>}
+                            variant={"outlined"}
+                            onClick={() => handleCopy(pwdlCommand)}
+                            aria-label="Pwdlize">
+                            Pwdlize
+                        </Button>
+                    </Grid>
+                </Grid>
+                <Paper
+                    p={1}
+                    sx={{
                     bosizehadow: 6,
                     backgroundColor: `${theme.palette.background.paper}`,
                 }}>
@@ -383,6 +420,14 @@ const FullDetailsWithoutSuspense = () => {
                     downloadName={notificationData.downloadName}
                     severity={notificationData.severity}
                 />
+                {snackOpen&&(
+                        <SimpleSnackbar
+                            message={snackBarMessage}
+                            open={snackOpen}
+                            handleClose={() => setSnackOpen(false)}
+                        />
+                    )
+                }
             </>
         </Suspense>
     );

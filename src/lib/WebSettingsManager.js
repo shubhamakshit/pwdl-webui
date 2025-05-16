@@ -6,12 +6,12 @@ class WebSettingsManager {
             mode: "dark"
         },
         typography: {
-            fontFamily: [
-                'Ubuntu',
-                'Poppins',
-            ].join(','),
+            // fontFamily: [
+            //     'Ubuntu',
+            //     'Poppins',
+            // ].join(','),
             h1: {
-                fontFamily: 'Ubuntu Mono',
+                // fontFamily: 'Ubuntu Mono',
                 fontSize: 40,
                 fontWeight: 700
             },
@@ -121,7 +121,7 @@ class WebSettingsManager {
     }
 
     static getValue(key) {
-        return this.settingsWithTooltips[key]?.value;
+        return this?.settingsWithTooltips[key]?.value;
     }
 
     static saveSettingsToLocalStorage() {

@@ -81,7 +81,7 @@ const TaskItem = memo(({ task, handleContextMenu, setContextOptions }) => {
                         <IconButton
                             edge="end"
                             aria-label="download"
-                            href={API.getFile_TaskUrl(task.url)}
+                            href={API.getFile_TaskUrl(task.url).url}
                             target="_blank"
                             color="primary"
                             size="small"
