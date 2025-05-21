@@ -11,6 +11,7 @@ import Utils from "@/lib/utils";
 // Importing specific models
 import BatchLectureDetail from "@/app/models/Batches/BatchLectureDetail";
 import BatchNotesDetail from "@/app/models/Batches/BatchNotesDetail";
+import DppNotesDetails from "@/app/models/Batches/DppNotesDetails";
 
 const BatchDetailsPage = () => {
     const params = useParams();
@@ -34,6 +35,14 @@ const BatchDetailsPage = () => {
         );
     }, [params]);
 
+    const fetchDppNotes = useCallback(() => {
+        const { batch_name, subject_name, chapter_name } = params;
+        return DataService.fetch(
+            API.GET_BATCHES_DPP_NOTES(batch_name, subject_name, chapter_name),
+            DppNotesDetails
+        );
+    }, [params]);
+
     // Handle lecture selection
     const handleLectureSelection = useCallback((data) => {
         return data.map((item) => ({
@@ -44,6 +53,14 @@ const BatchDetailsPage = () => {
 
     // Handle note selection
     const handleNoteSelection = useCallback((data) => {
+        return data.map((item) => ({
+            link: item.homeworks[0].attachments[0].link,
+            name: item.homeworks[0].attachments[0].name
+        }));
+    }, []);
+
+    // Handle dpp note selection
+    const handleDppNoteSelection = useCallback((data) => {
         return data.map((item) => ({
             link: item.homeworks[0].attachments[0].link,
             name: item.homeworks[0].attachments[0].name
@@ -89,6 +106,16 @@ const BatchDetailsPage = () => {
             handleDownload: handleNotesDownload,
             onCardClick: handleLectureClick,
             fields: []
+        },
+        {
+            label: "DPP Notes",
+            fetchData: fetchDppNotes,
+            type: "notes",
+            noDataMessage: "No notes found for this chapter.",
+            handleSelection: handleDppNoteSelection,
+            handleDownload: handleNotesDownload,
+            onCardClick: handleLectureClick,
+            fields: []
         }
         // Easy to add more tabs here in the future
     ], [
@@ -98,7 +125,9 @@ const BatchDetailsPage = () => {
         handleNoteSelection,
         handleLectureDownload,
         handleNotesDownload,
-        handleLectureClick
+        handleLectureClick,
+        fetchDppNotes,
+        handleDppNoteSelection
     ]);
 
     return <LecturesWrapper tabConfigurations={tabConfigurations} params={params} />;

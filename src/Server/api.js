@@ -112,6 +112,9 @@ class API {
     static GET_BATCHES_NOTES = (batch_name, subject_name, chapter_name) =>
         `${API.base_url}/api/batches/${batch_name}/${subject_name}/${chapter_name}/notes`;
 
+    static GET_BATCHES_DPP_NOTES = (batch_name, subject_name, chapter_name) =>
+        `${API.base_url}/api/batches/${batch_name}/${subject_name}/${chapter_name}/dpp_pdf`;
+
     // static GET_KHAZANA_SUBJECTS = (batchId) =>
     //     `${API.base_url}/subjects?batch_name=${batchId}`;
     //
