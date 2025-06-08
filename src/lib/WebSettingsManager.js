@@ -37,6 +37,14 @@ class WebSettingsManager {
             value: false,
             tooltip: "Khazana Enabled"
         },
+        target_os:{
+            value: ["Linux","Windows"],
+            tooltip: "OS"
+        },
+        target_shell:{
+            value: ["bash","powershell","cmd"],
+            tooltip: "Shell"
+        },
         dark_mode: {
             value: false,
             tooltip: "Dark Mode"

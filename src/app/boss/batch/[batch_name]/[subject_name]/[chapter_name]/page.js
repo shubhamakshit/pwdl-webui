@@ -95,7 +95,7 @@ const BatchDetailsPage = () => {
             handleSelection: handleLectureSelection,
             handleDownload: handleLectureDownload,
             onCardClick: handleLectureClick,
-            fields: ["slug"]
+            fields: ["date"]
         },
         {
             label: "Notes",

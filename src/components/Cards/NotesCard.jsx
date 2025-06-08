@@ -2,6 +2,7 @@
 import {Box, CardContent, Typography, Chip, Button, Grid, Paper, IconButton} from "@mui/material"; // Added IconButton
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DownloadIcon from '@mui/icons-material/Download';
+import EventIcon from "@mui/icons-material/Event"; // Import the Event icon
 import BaseCard from "./BaseCard";
 import Stack from "@mui/material/Stack";
 
@@ -36,19 +37,38 @@ const NotesCard = ({
                     '&:last-child': { pb: 3 }
                 }}
             >
-                <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{
-                        fontWeight: 600,
-                        fontSize: '1.1rem',
-                        color: 'primary.main',
-                        mb: 2
-                    }}
-                >
-                    {data?.content?.[0]?.text || data?.homeworks?.[0]?.attachments?.[0]?.name || "Untitled"}
-                </Typography>
+                {/* Date Chip - Added at the top, left-aligned, with subtle styling */}
+                {data.date && ( // Assuming 'data.date' will contain the date information
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            justifyContent: 'flex-start', // Keep left-aligned
+                            mb: 1.5, // Margin below the date chip
+                            width: '100%' // Ensure it takes full width
+                        }}
+                    >
+                        <Chip
+                            icon={<EventIcon sx={{ fontSize: '0.9rem !important' }} />} // Smaller icon
+                            label={new Date(data.date).toLocaleDateString(undefined, {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric'
+                            })} // Formatted as DD/MM/YYYY
+                            size="small" // Small size
+                            variant="filled" // Filled variant for a subtle background
+                            sx={{
+                                backgroundColor: 'rgba(255, 255, 255, 0.08)', // Subtle, dark-theme-friendly background
+                                color: 'text.secondary', // Text color
+                                '.MuiChip-icon': { // Icon styling
+                                    color: 'text.secondary',
+                                    ml: 0.5
+                                },
+                            }}
+                        />
+                    </Box>
+                )}
 
+                {/* PDF Download Section */}
                 {downloadLink && (
                     <Paper
                         elevation={0}
@@ -95,23 +115,34 @@ const NotesCard = ({
                                 </Typography>
                             </Stack>
                             <IconButton
-                                aria-label={`Download ${fileName}`} // More specific aria-label
-                                title={`Download ${fileName}`}      // Tooltip for users
+                                aria-label={`Download ${fileName}`}
+                                title={`Download ${fileName}`}
                                 onClick={(e) => handleDownloadClick(e, downloadLink)}
-                                size="small" // Consistent with previous button size
+                                size="small"
                                 sx={{
                                     flexShrink: 0,
-                                    // If you want it to have a contained look, you can add:
-                                    // bgcolor: 'primary.main',
-                                    // color: 'primary.contrastText',
-                                    // '&:hover': { bgcolor: 'primary.dark' }
                                 }}
                             >
-                                <DownloadIcon fontSize="inherit" /> {/* Icon will inherit size from IconButton */}
+                                <DownloadIcon fontSize="inherit" />
                             </IconButton>
                         </Stack>
                     </Paper>
                 )}
+
+                <Typography
+                    variant="h6"
+                    gutterBottom
+                    sx={{
+                        fontWeight: 600,
+                        fontSize: '1.1rem',
+                        color: 'primary.main',
+                        // Adjust mt based on whether a date chip or download link is present
+                        mt: (data.date || downloadLink) ? 0 : 0, // No extra top margin if either is present
+                        mb: 2
+                    }}
+                >
+                    {data?.content?.[0]?.text || data?.homeworks?.[0]?.attachments?.[0]?.name || "Untitled"}
+                </Typography>
 
                 {data?.tags && data.tags.length > 0 && (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
@@ -120,12 +151,13 @@ const NotesCard = ({
                                 key={idx}
                                 label={tag?.name || tag || "Unknown Tag"}
                                 size="small"
-                                color="primary"
-                                variant="outlined"
+                                variant="filled"
                                 sx={{
                                     borderRadius: '6px',
                                     fontSize: '0.75rem',
                                     height: '24px',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                                    color: 'text.secondary',
                                     '& .MuiChip-label': {
                                         px: 1
                                     }
@@ -138,29 +170,32 @@ const NotesCard = ({
                 {fields?.length > 0 && (
                     <Grid container spacing={1}>
                         {fields?.map((field, index) => (
-                            <Grid item xs={12} key={index}>
-                                <Typography
-                                    variant="body2"
-                                    sx={{
-                                        color: 'text.secondary',
-                                        display: 'flex',
-                                        alignItems: 'flex-start', // Align items to the start for potentially multi-line values
-                                        gap: 0.5,
-                                    }}
-                                >
-                                    <Box component="span" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{field}:</Box>
-                                    <Box
-                                        component="span"
+                            // Exclude 'date' from the dynamic fields if it's rendered separately
+                            field !== 'date' && (
+                                <Grid item xs={12} key={index}>
+                                    <Typography
+                                        variant="body2"
                                         sx={{
-                                            fontFamily: "monospace",
-                                            color: 'text.primary',
-                                            wordBreak: 'break-all'
+                                            color: 'text.secondary',
+                                            display: 'flex',
+                                            alignItems: 'flex-start',
+                                            gap: 0.5,
                                         }}
                                     >
-                                        {data?.[field] !== undefined && data?.[field] !== null ? String(data?.[field]) : "N/A"}
-                                    </Box>
-                                </Typography>
-                            </Grid>
+                                        <Box component="span" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{field}:</Box>
+                                        <Box
+                                            component="span"
+                                            sx={{
+                                                fontFamily: "monospace",
+                                                color: 'text.primary',
+                                                wordBreak: 'break-all'
+                                            }}
+                                        >
+                                            {data?.[field] !== undefined && data?.[field] !== null ? String(data?.[field]) : "N/A"}
+                                        </Box>
+                                    </Typography>
+                                </Grid>
+                            )
                         ))}
                     </Grid>
                 )}

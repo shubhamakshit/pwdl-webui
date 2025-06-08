@@ -1,0 +1,49 @@
+{
+    "0815223a-3eb5-40d5-ba6f-10fdaa99ab7c": {
+        "name": "appears-knitting",
+        "client_id": "0815223a-3eb5-40d5-ba6f-10fdaa99ab7c",
+        "sessions": {
+            "0646e34c-ec04-4476-86ee-cc71aa2cb35e": {
+                "tasks": {
+                    "4da4d4f9-071c-4b74-bc40-22bed8b24196": {
+                        "task_id": "4da4d4f9-071c-4b74-bc40-22bed8b24196",
+                        "progress": {
+                            "audio": {
+                                "type": "audio",
+                                "total": 1968,
+                                "current": 1968,
+                                "percentage": 100.0,
+                                "segment_num": 1967,
+                                "success": true,
+                                "failed_segments": [],
+                                "timestamp": "2025-06-07 15:46:01"
+                            },
+                            "video": {
+                                "type": "video",
+                                "total": 1967,
+                                "current": 1967,
+                                "percentage": 100.0,
+                                "segment_num": 1965,
+                                "success": true,
+                                "failed_segments": [],
+                                "timestamp": "2025-06-07 15:46:22"
+                            }
+                        },
+                        "status": "completed",
+                        "name": "Vectors_03__Finding_Unit_Vector_",
+                        "out_dir": "/data/data/com.termux/files/home/pwdlv3/webdl",
+                        "id": "684158d469ed93b929ccad7b",
+                        "batch_name": "yakeen-neet-2-0-2026-854543",
+                        "topic_name": null,
+                        "lecture_url": null,
+                        "client_id": "0815223a-3eb5-40d5-ba6f-10fdaa99ab7c",
+                        "session_id": "0646e34c-ec04-4476-86ee-cc71aa2cb35e",
+                        "url": "/get-file/4da4d4f9-071c-4b74-bc40-22bed8b24196/Vectors_03__Finding_Unit_Vector_"
+                    }
+                },
+                "name": "whore-images",
+                "timestamp": "2025-06-07 21:15:05"
+            }
+        }
+    }
+}

@@ -20,6 +20,7 @@ import AddIcon from "@mui/icons-material/Add";
 import copyUtils, {CopyUtils} from "@/lib/copyUtils";
 import SimpleSnackbar from "@/components/SimpleSnackbar";
 import FullScreenLoader from "@/components/FullScreenLoader";
+import WebSettingsManager from "@/lib/WebSettingsManager";
 
 const FullDetailsWithoutSuspense = () => {
     const [listOfDetails, changeListOfDetails] = useState([]);
@@ -60,8 +61,22 @@ const FullDetailsWithoutSuspense = () => {
         , [listOfDetails, downloading]);
 
     const pwdlCommand = useMemo(() => {
-        if(listOfDetails.length > 0)
-        return Utils.toPwdlCommand(listOfDetails.map(detail => detail.state))
+        if(listOfDetails.length > 0){
+            
+            if(WebSettingsManager.getValue('target_os')[0] == 'Windows'){
+                if(WebSettingsManager.getValue('target_shell')[0] == 'cmd')
+                    return Utils.toPwdlCommandBatch(listOfDetails.map(detail => detail.state),{
+                        pythonCmd:'py'
+                })
+                else
+                    return Utils.toPwdlCommandPowerShell(listOfDetails.map(detail => detail.state),{
+                        pythonCmd:'py'
+                })
+            }
+            else{
+                return Utils.toPwdlCommand(listOfDetails.map(detail => detail.state))
+            }
+        }
     },[listOfDetails]);
 
     const setAlertMessage = (message, severity) => {
@@ -403,7 +418,7 @@ const FullDetailsWithoutSuspense = () => {
                                         variant="contained"
                                         color="secondary"
                                         endIcon={<ListAltIcon/>}
-                                        onClick={() => Utils.cipman().copy(Utils.urlsToCurl(completedTasks.map(task => `${window.location.origin}${task.url}`)))}
+                                        onClick={() => Utils.cipman().copy(Utils.urlsToCurl(completedTasks.map(task => `${API.base_url}${task.url}`)))}
                                         aria-label="Copy curl commands">
                                         Curl-It
                                     </Button>
