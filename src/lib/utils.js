@@ -119,7 +119,7 @@ class Utils{
         const curlParts = urls.map(url => `curl -LO "${url}"`);
 
         // Join commands with '&&' to run sequentially
-        const command = curlParts.join(' && ');
+        const command = curlParts.join(' || ');
 
         return command;
     };
