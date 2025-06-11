@@ -119,7 +119,7 @@ class Utils{
         const curlParts = urls.map(url => `curl -LO "${url}"`);
 
         // Join commands with '&&' to run sequentially
-        const command = curlParts.join(' || ');
+        const command = curlParts.join(' && ');
 
         return command;
     };
@@ -449,7 +449,7 @@ static toPwdlCommandPowerShell(listOfStates, options = {}) {
     }
 
     const pythonCmdToUse = options.pythonCmd || "python"; // Default to "python"
-    const pwdlScriptPathToUse = options.pwdlScriptPath || "$env:USERPROFILE\\Documents\\pwdlv3\\pwdl.py"; // Default path relative to USERPROFILE
+    const pwdlScriptPathToUse = options.pwdlScriptPath || "$env:USERPROFILE\\pwdlv3\\pwdl.py"; // Default path relative to USERPROFILE
 
     const firstItemName = listOfStates[0].name || '';
     // Sanitize for directory name using the modified getFirstWord logic
@@ -589,7 +589,7 @@ static toPwdlCommandBatch(listOfStates, options = {}) {
     }
 
     const pythonCmdToUse = options.pythonCmd || "python"; // Default to "python"
-    const pwdlScriptPathToUse = options.pwdlScriptPath || "%USERPROFILE%\\Documents\\pwdlv3\\pwdl.py"; // Default path relative to USERPROFILE
+    const pwdlScriptPathToUse = options.pwdlScriptPath || "%USERPROFILE%\\pwdlv3\\pwdl.py"; // Default path relative to USERPROFILE
 
     const firstItemName = listOfStates[0].name || '';
     // Sanitize for directory name using the modified getFirstWord logic
