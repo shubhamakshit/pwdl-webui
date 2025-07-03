@@ -109,6 +109,9 @@ class API {
     static GET_BATCHES_LECTURES = (batch_name, subject_name, chapter_name) =>
         `${API.base_url}/api/batches/${batch_name}/${subject_name}/${chapter_name}`;
 
+    static GET_SPECIFIC_LECTURE_DETAIL = (batch_name,id) =>
+         `${API.base_url}/api/lecture/${batch_name}/${id}`;
+
     static GET_BATCHES_NOTES = (batch_name, subject_name, chapter_name) =>
         `${API.base_url}/api/batches/${batch_name}/${subject_name}/${chapter_name}/notes`;
 

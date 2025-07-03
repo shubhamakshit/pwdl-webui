@@ -14,6 +14,7 @@ import NotesCard from "@/components/Cards/NotesCard";
  * @param {Object} props - Component props
  * @param {Function} props.fetchData - Function to fetch data
  * @param {Function} props.onCardClick - Function to call when a card is clicked
+ * @param {Function} [props.onWatchClick] - Optional function to call when the watch button on a LectureCard is clicked
  * @param {Function} props.renderCard - Optional custom card renderer
  * @param {Array<string>} props.fields - Array of field names to display dynamically
  * @param {string} props.noDataMessage - Message to display when no data is available
@@ -27,6 +28,7 @@ import NotesCard from "@/components/Cards/NotesCard";
 const DataListComponent = ({
                                fetchData,
                                onCardClick,
+                               onWatchClick, // Destructure the new prop
                                renderCard,
                                fields = [],
                                noDataMessage = "No data available.",
@@ -151,6 +153,7 @@ const DataListComponent = ({
                                     data={item}
                                     image={imageUrl}
                                     onClick={() => onCardClick(item)}
+                                    onWatchClick={onWatchClick} // Pass the onWatchClick prop here
                                     fields={fields}
                                     selectable={selectable}
                                     onSelect={selection.handleSelect}

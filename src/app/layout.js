@@ -22,7 +22,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
     return (
         <html lang="en">
-
+          <head>
+            <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/shaka-player/4.3.4/controls.css" />
+            <script src="https://ajax.googleapis.com/ajax/libs/shaka-player/4.3.4/shaka-player.ui.js"></script>
+            </head>
         <body className={`${geistSans.variable} ${geistMono.variable}`}>
 
         <MUIProvider>
