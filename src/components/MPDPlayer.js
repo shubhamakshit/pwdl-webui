@@ -45,6 +45,7 @@ const SEEK_STEP = 5; // seconds - base seek step
 const VOLUME_STEP = 0.05; // 5% steps
 const CONTINUOUS_SEEK_ACCELERATION_TIME = 1000; // ms before acceleration kicks in
 const MAX_SEEK_MULTIPLIER = 6; // maximum seek speed multiplier
+const SEEK_GESTURE_DELAY = 500; // ms to prevent control flicker during rapid seeking
 
 // --- Styled Components ---
 
@@ -334,6 +335,7 @@ const MPDPlayer = ({
   const feedbackTimeoutRef = useRef(null);
   const isMouseOverRef = useRef(false);
   const progressHoverRef = useRef(false);
+  const seekGestureTimeoutRef = useRef(null);
 
   // Enhanced seeking refs
   const seekingRef = useRef({ 
@@ -363,6 +365,7 @@ const MPDPlayer = ({
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [scrubTime, setScrubTime] = useState(null);
+  const [isSeekingGesture, setIsSeekingGesture] = useState(false);
 
   // Page visibility and recovery state
   const [isPageVisible, setIsPageVisible] = useState(!document.hidden);
@@ -399,12 +402,15 @@ const MPDPlayer = ({
     isSmooth: false 
   });
 
-  // Unified loading state management
+  // Unified loading state management - prioritize seek feedback over generic seeking
   useEffect(() => {
     if (scrubFeedback.active) {
       setLoadingState({ type: 'scrubbing', active: true });
     } else if (continuousSeekFeedback.active) {
       setLoadingState({ type: 'continuous-seeking', active: true });
+    } else if (seekFeedback.active) {
+      // When seek feedback is active, don't show the generic seeking spinner
+      setLoadingState({ type: 'seek-feedback', active: false });
     } else if (isSeeking) {
       setLoadingState({ type: 'seeking', active: true });
     } else if (isBuffering) {
@@ -412,7 +418,7 @@ const MPDPlayer = ({
     } else {
       setLoadingState({ type: null, active: false });
     }
-  }, [scrubFeedback.active, continuousSeekFeedback.active, isSeeking, isBuffering]);
+  }, [scrubFeedback.active, continuousSeekFeedback.active, seekFeedback.active, isSeeking, isBuffering]);
 
   // Page visibility handling
   useEffect(() => {
@@ -507,6 +513,9 @@ const MPDPlayer = ({
     const player = new shaka.Player(video);
     playerRef.current = player;
     setIsBuffering(true);
+
+    // Set crossOrigin for screenshot capability
+    video.crossOrigin = 'anonymous';
 
     player.addEventListener('error', (event) => {
       console.error('Shaka Error:', event.detail);
@@ -630,7 +639,13 @@ const MPDPlayer = ({
         setBufferedTime(video.buffered.end(video.buffered.length - 1));
       }
     };
-    const onSeeking = () => setIsSeeking(true);
+    
+    // Only show seeking spinner if no seek feedback is active
+    const onSeeking = () => {
+      if (!seekFeedback.active) {
+        setIsSeeking(true);
+      }
+    };
     const onSeeked = () => setIsSeeking(false);
 
     video.addEventListener('play', onPlay);
@@ -654,7 +669,7 @@ const MPDPlayer = ({
       video.removeEventListener('seeking', onSeeking);
       video.removeEventListener('seeked', onSeeked);
     };
-  }, [scrubTime, volume, isMuted]);
+  }, [scrubTime, volume, isMuted, seekFeedback.active]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -667,29 +682,29 @@ const MPDPlayer = ({
 
   // Enhanced controls visibility logic
   const scheduleHideControls = useCallback(() => {
-    if (touchStateRef.current.preventControlsHide) return;
+    if (touchStateRef.current.preventControlsHide || isSeekingGesture) return;
     
     clearTimeout(controlsTimeoutRef.current);
     controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying && isFullscreen && !progressHoverRef.current && !touchStateRef.current.isTouching) {
+      if (isPlaying && isFullscreen && !progressHoverRef.current && !touchStateRef.current.isTouching && !isSeekingGesture) {
         setShowControls(false);
         setQualityMenuAnchorEl(null);
         setRateMenuAnchorEl(null);
         setVolumeSliderAnchorEl(null);
       }
     }, 3500);
-  }, [isPlaying, isFullscreen]);
+  }, [isPlaying, isFullscreen, isSeekingGesture]);
 
   useEffect(() => {
     if (isFullscreen) {
-      if (showControls && !touchStateRef.current.isTouching) {
+      if (showControls && !touchStateRef.current.isTouching && !isSeekingGesture) {
         scheduleHideControls();
       }
     } else {
       setShowControls(true);
       clearTimeout(controlsTimeoutRef.current);
     }
-  }, [showControls, isFullscreen, scheduleHideControls]);
+  }, [showControls, isFullscreen, isSeekingGesture, scheduleHideControls]);
 
   const togglePlayPause = useCallback(() => {
     if (!videoRef.current) return;
@@ -709,9 +724,18 @@ const MPDPlayer = ({
   const triggerSeekFeedback = useCallback((type, targetTime, multiplier = 1) => {
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
     setSeekFeedback({ active: true, type, time: targetTime, multiplier });
+    
+    // Set seeking gesture state to prevent control flickering
+    setIsSeekingGesture(true);
+    clearTimeout(seekGestureTimeoutRef.current);
+    
     feedbackTimeoutRef.current = setTimeout(() => {
       setSeekFeedback({ active: false, type: '', time: 0, multiplier: 1 });
     }, 800);
+
+    seekGestureTimeoutRef.current = setTimeout(() => {
+      setIsSeekingGesture(false);
+    }, SEEK_GESTURE_DELAY);
   }, []);
 
   // Enhanced continuous seeking with proper step multiples
@@ -793,11 +817,13 @@ const MPDPlayer = ({
     }, 600);
   }, []);
 
+  // Enhanced container click handler with center region play/pause support and flicker prevention
   const handleContainerClick = useCallback((e) => {
     if (gestureRef.current.didScrub) {
       gestureRef.current.didScrub = false;
       return;
     }
+    
     const now = Date.now();
     const isDoubleTap = now - lastTapTimeRef.current < 300;
     lastTapTimeRef.current = now;
@@ -805,20 +831,28 @@ const MPDPlayer = ({
     if (isDoubleTap) {
       const rect = containerRef.current.getBoundingClientRect();
       const tapX = e.clientX - rect.left;
-      const isLeftSide = tapX < rect.width / 2;
+      const regionWidth = rect.width / 3;
       
-      if (isLeftSide) {
+      if (tapX < regionWidth) {
+        // Left region - seek backward
         const newTime = handleSeek(-10);
         triggerSeekFeedback('backward', newTime);
-      } else {
+      } else if (tapX > rect.width - regionWidth) {
+        // Right region - seek forward
         const newTime = handleSeek(10);
         triggerSeekFeedback('forward', newTime);
+      } else {
+        // Center region - play/pause
+        togglePlayPause();
       }
       lastTapTimeRef.current = 0;
     } else {
-      setShowControls((s) => !s);
+      // Only toggle controls if not in seeking gesture state
+      if (!isSeekingGesture) {
+        setShowControls((s) => !s);
+      }
     }
-  }, [handleSeek, triggerSeekFeedback]);
+  }, [handleSeek, triggerSeekFeedback, togglePlayPause, isSeekingGesture]);
 
   // Enhanced touch handling to prevent control flickering
   const handleTouchStart = useCallback((e) => {
@@ -947,36 +981,132 @@ const MPDPlayer = ({
     triggerVolumeFeedback(videoRef.current.volume, newMuted);
   }, [triggerVolumeFeedback]);
 
+  // Enhanced screenshot function with multiple fallback methods
   const handleScreenshot = useCallback(async () => {
     if (!videoRef.current) return;
+    
     const video = videoRef.current;
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    let canvas, ctx, success = false;
 
+    // Show feedback immediately
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
     setScreenshotFeedback({ active: true });
+
+    try {
+      // Method 1: Direct canvas capture
+      canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || video.clientWidth;
+      canvas.height = video.videoHeight || video.clientHeight;
+      ctx = canvas.getContext('2d');
+
+      // Wait for video to be ready and try multiple approaches
+      await new Promise((resolve) => {
+        const tryCapture = () => {
+          try {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Check if canvas is not blank/black
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            let hasNonBlackPixels = false;
+            
+            for (let i = 0; i < data.length; i += 4) {
+              if (data[i] > 10 || data[i + 1] > 10 || data[i + 2] > 10) {
+                hasNonBlackPixels = true;
+                break;
+              }
+            }
+            
+            if (hasNonBlackPixels) {
+              success = true;
+              resolve();
+            } else {
+              throw new Error('Canvas appears to be black');
+            }
+          } catch (err) {
+            console.warn('Screenshot capture attempt failed:', err);
+            // Try again after a short delay
+            setTimeout(tryCapture, 100);
+          }
+        };
+        
+        // Start capture attempts
+        tryCapture();
+        
+        // Fallback timeout
+        setTimeout(() => {
+          if (!success) {
+            console.warn('Using potentially black screenshot as fallback');
+            success = true;
+            resolve();
+          }
+        }, 1000);
+      });
+
+      // Try to copy to clipboard first
+      try {
+        const blob = await new Promise(resolve => 
+          canvas.toBlob(resolve, 'image/png', 0.95)
+        );
+        
+        if (navigator.clipboard && window.ClipboardItem) {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]);
+          console.log('Screenshot copied to clipboard');
+        }
+      } catch (clipboardErr) {
+        console.warn('Failed to copy to clipboard:', clipboardErr);
+      }
+
+      // Always download as fallback
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png', 0.95);
+      const time = formatTime(video.currentTime).replace(/:/g, '-');
+      link.download = `screenshot-${time}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      console.log('Screenshot saved successfully');
+
+    } catch (err) {
+      console.error('Screenshot failed:', err);
+      
+      // Final fallback: try a different approach
+      try {
+        if (!canvas) {
+          canvas = document.createElement('canvas');
+          canvas.width = 1280;
+          canvas.height = 720;
+          ctx = canvas.getContext('2d');
+        }
+        
+        // Fill with a placeholder if all else fails
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Screenshot not available', canvas.width / 2, canvas.height / 2);
+        ctx.fillText(`Time: ${formatTime(video.currentTime)}`, canvas.width / 2, canvas.height / 2 + 30);
+        
+        const link = document.createElement('a');
+        link.href = canvas.toDataURL('image/png');
+        link.download = `screenshot-fallback-${formatTime(video.currentTime).replace(/:/g, '-')}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        console.log('Fallback screenshot created');
+      } catch (fallbackErr) {
+        console.error('Even fallback screenshot failed:', fallbackErr);
+      }
+    }
+
     feedbackTimeoutRef.current = setTimeout(() => {
       setScreenshotFeedback({ active: false });
     }, 2000);
-
-    try {
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      console.log('Screenshot copied to clipboard.');
-    } catch (err) {
-      console.error('Failed to copy screenshot to clipboard:', err);
-    }
-
-    const link = document.createElement('a');
-    link.href = canvas.toDataURL('image/png');
-    const time = formatTime(video.currentTime).replace(/:/g, '-');
-    link.download = `screenshot-${time}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   }, []);
 
   // Enhanced keyboard handling with proper seek step multiples
@@ -1048,6 +1178,7 @@ const MPDPlayer = ({
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('keyup', handleKeyUp);
       stopContinuousSeeking();
+      clearTimeout(seekGestureTimeoutRef.current);
     };
   }, [togglePlayPause, handleFullscreenToggle, toggleMute, handleSeek, triggerSeekFeedback, handleVolumeChange, handleScreenshot, startContinuousSeeking, stopContinuousSeeking]);
 
@@ -1074,7 +1205,8 @@ const MPDPlayer = ({
           </Box>
         </Fade>
 
-        <Fade in={loadingState.active && loadingState.type === 'seeking'}>
+        {/* Only show seeking spinner when seek feedback is NOT active */}
+        <Fade in={loadingState.active && loadingState.type === 'seeking' && !seekFeedback.active}>
           <SeekingSpinner size={32} thickness={3} />
         </Fade>
 
