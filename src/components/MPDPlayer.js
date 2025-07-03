@@ -15,6 +15,7 @@ import {
   styled,
   Button,
   Popover,
+  Tooltip,
 } from '@mui/material';
 import {
   PlayArrow,
@@ -29,41 +30,75 @@ import {
   VolumeDown,
   VolumeOff,
   CameraAlt,
+  Replay,
+  FastForward,
 } from '@mui/icons-material';
 import WebSettingsManager from '@/lib/WebSettingsManager';
 
 // --- Constants for Settings ---
-const PLAYBACK_RATES = WebSettingsManager.getValue('playback_speeds') || [0.5, 0.75, 1.0, 1.25, 1.5, 2.0] ;
-const DEFAULT_PLAYBACK_RATE = PLAYBACK_RATES[0] || 1.0;
+const PLAYBACK_RATES = WebSettingsManager.getValue('playback_speeds') || [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+const DEFAULT_PLAYBACK_RATE = PLAYBACK_RATES.find(rate => rate === 1.0) || 1.0;
 const AUTO_QUALITY_LABEL = 'Auto';
-const HORIZONTAL_SEEK_SENSITIVITY = 3;
-const ALWAYS_ON_PROGRESS_BAR_HEIGHT = '3px';
+const HORIZONTAL_SEEK_SENSITIVITY = 2;
+const ALWAYS_ON_PROGRESS_BAR_HEIGHT = '4px';
+const SEEK_STEP = 5; // seconds - base seek step
+const VOLUME_STEP = 0.05; // 5% steps
+const CONTINUOUS_SEEK_ACCELERATION_TIME = 1000; // ms before acceleration kicks in
+const MAX_SEEK_MULTIPLIER = 6; // maximum seek speed multiplier
 
 // --- Styled Components ---
 
-// MODIFIED: Removed tabIndex and focus outline, no longer needed for keyboard events
 const PlayerWrapper = styled('div')({
   width: '100%',
   position: 'relative',
+  borderRadius: '12px',
+  overflow: 'hidden',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+  '&:focus, &:focus-visible, &:active': {
+    outline: 'none',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+  },
+  userSelect: 'none',
+  '-webkit-user-select': 'none',
+  '-moz-user-select': 'none',
+  '-ms-user-select': 'none',
 });
 
 const PlayerContainer = styled(Card)(({ theme, isFullscreen }) => ({
   width: '100%',
   maxWidth: isFullscreen ? '100vw' : '1200px',
   aspectRatio: '16 / 9',
-  backgroundColor: 'black',
+  backgroundColor: '#000',
   position: 'relative',
   overflow: 'hidden',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+  cursor: 'pointer',
+  borderRadius: isFullscreen ? 0 : '12px',
+  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  '&:focus, &:focus-visible, &:active, &:focus-within': {
+    outline: 'none !important',
+    boxShadow: 'none !important',
+  },
+  '&.MuiCard-root': {
+    '&:focus, &:focus-visible, &:active': {
+      outline: 'none',
+      boxShadow: 'none',
+    },
+  },
+  '& .MuiTouchRipple-root': {
+    display: 'none',
+  },
+  userSelect: 'none',
+  '-webkit-user-select': 'none',
+  '-webkit-tap-highlight-color': 'transparent',
   ...(isFullscreen && {
     position: 'fixed',
     top: 0,
     left: 0,
     height: '100vh',
     zIndex: theme.zIndex.modal,
-    borderRadius: 0,
     aspectRatio: 'unset',
   }),
 }));
@@ -75,53 +110,70 @@ const GestureLayer = styled(Box)({
   right: 0,
   bottom: 0,
   zIndex: 1,
+  '&:focus, &:focus-visible, &:active': {
+    outline: 'none',
+    backgroundColor: 'transparent',
+  },
+  '-webkit-tap-highlight-color': 'transparent',
+  userSelect: 'none',
+  '-webkit-user-select': 'none',
 });
 
-const FeedbackAnimation = styled(Box)(({ theme }) => ({
+const FeedbackAnimation = styled(Box)(({ theme, variant = 'default' }) => ({
   position: 'absolute',
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
   color: 'white',
-  backgroundColor: 'rgba(0, 0, 0, 0.6)',
-  borderRadius: '16px',
-  padding: theme.spacing(1, 2),
+  backgroundColor: variant === 'seek' ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.8)',
+  borderRadius: variant === 'seek' ? '24px' : '16px',
+  padding: variant === 'seek' ? theme.spacing(2.5, 4) : theme.spacing(1.5, 2.5),
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   pointerEvents: 'none',
   zIndex: 5,
-  minWidth: '120px',
+  minWidth: variant === 'seek' ? '200px' : '120px',
+  backdropFilter: 'blur(12px)',
+  border: '1px solid rgba(255, 255, 255, 0.15)',
+  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.4)',
 }));
 
-const ControlsOverlay = styled(Box, {
-  shouldForwardProp: (prop) => prop !== 'isFullscreen',
-})(({ theme, isFullscreen }) => ({
+const ControlsOverlay = styled(Box)(({ theme, isFullscreen, isTouching }) => ({
   position: 'absolute',
   bottom: isFullscreen ? ALWAYS_ON_PROGRESS_BAR_HEIGHT : 0,
   left: 0,
   right: 0,
-  padding: theme.spacing(1, 2, 2, 2),
+  padding: theme.spacing(2, 3, 3, 3),
   zIndex: 3,
   color: 'white',
-  background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0) 100%)',
+  background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 70%, rgba(0,0,0,0) 100%)',
+  transition: isTouching ? 'none' : 'opacity 0.3s ease-in-out',
+  pointerEvents: 'auto',
 }));
 
 const ControlPanel = styled(Card)(({ theme }) => ({
-  padding: theme.spacing(1, 2),
-  marginTop: theme.spacing(1),
+  padding: theme.spacing(2, 3),
+  marginTop: theme.spacing(1.5),
+  backgroundColor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#f8f9fa',
+  borderRadius: '12px',
+  border: `1px solid ${theme.palette.divider}`,
 }));
 
-const PersistentProgressBarContainer = styled(Box)(({ theme }) => ({
+const PersistentProgressBarContainer = styled(Box)({
   position: 'absolute',
   bottom: 0,
   left: 0,
   width: '100%',
   height: ALWAYS_ON_PROGRESS_BAR_HEIGHT,
-  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  backgroundColor: 'rgba(255, 255, 255, 0.25)',
   zIndex: 2,
   cursor: 'pointer',
-}));
+  '&:hover': {
+    height: '8px',
+    transition: 'height 0.2s ease',
+  },
+});
 
 const PersistentProgressBarGauge = styled(Box)(({ theme }) => ({
   width: '100%',
@@ -129,15 +181,114 @@ const PersistentProgressBarGauge = styled(Box)(({ theme }) => ({
   transformOrigin: 'left',
   backgroundColor: theme.palette.primary.main,
   transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+  position: 'relative',
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    width: '2px',
+    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: '1px',
+  },
+}));
+
+// Enhanced progress bar with buffer indicator
+const EnhancedSlider = styled(Slider)(({ theme }) => ({
+  color: theme.palette.primary.main,
+  height: 6,
+  padding: '16px 0',
+  '& .MuiSlider-track': {
+    border: 'none',
+    height: 6,
+    borderRadius: 3,
+  },
+  '& .MuiSlider-rail': {
+    opacity: 0.3,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    height: 6,
+    borderRadius: 3,
+  },
+  '& .MuiSlider-thumb': {
+    height: 20,
+    width: 20,
+    backgroundColor: '#fff',
+    border: `2px solid ${theme.palette.primary.main}`,
+    opacity: 0,
+    transition: 'opacity 0.2s ease',
+    '&:hover, &.Mui-focusVisible': {
+      opacity: 1,
+      boxShadow: `0px 0px 0px 8px rgba(255, 255, 255, 0.16)`,
+    },
+    '&.Mui-active': {
+      opacity: 1,
+      boxShadow: `0px 0px 0px 12px rgba(255, 255, 255, 0.16)`,
+    },
+  },
+  '&:hover .MuiSlider-thumb': {
+    opacity: 1,
+  },
+}));
+
+// Buffer progress indicator
+const BufferProgressBar = styled(Box)(({ theme }) => ({
+  position: 'absolute',
+  top: '50%',
+  left: 0,
+  height: 6,
+  backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  borderRadius: 3,
+  transform: 'translateY(-50%)',
+  zIndex: 1,
 }));
 
 const VolumeSliderContainer = styled(Box)(({ theme }) => ({
-  height: 120,
-  padding: theme.spacing(2, 0),
+  height: 140,
+  padding: theme.spacing(2, 1.5),
   display: 'flex',
   justifyContent: 'center',
+  backgroundColor: 'rgba(40, 40, 40, 0.95)',
+  backdropFilter: 'blur(16px)',
+  borderRadius: '16px',
+  border: '1px solid rgba(255, 255, 255, 0.1)',
 }));
 
+const ControlButton = styled(IconButton)(({ theme }) => ({
+  color: 'white',
+  padding: theme.spacing(1),
+  transition: 'all 0.2s ease',
+  '&:hover': {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    transform: 'scale(1.05)',
+  },
+  '&:active': {
+    transform: 'scale(0.95)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  '&:focus': {
+    outline: 'none',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  '&:focus-visible': {
+    outline: '2px solid rgba(255, 255, 255, 0.5)',
+    outlineOffset: '2px',
+  },
+  '& .MuiTouchRipple-root': {
+    display: 'none',
+  },
+  '-webkit-tap-highlight-color': 'transparent',
+}));
+
+// Loading spinner for seeking
+const SeekingSpinner = styled(CircularProgress)(({ theme }) => ({
+  color: 'white',
+  position: 'absolute',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  zIndex: 6,
+}));
 
 // --- Helper Functions ---
 const formatTime = (timeInSeconds) => {
@@ -148,9 +299,21 @@ const formatTime = (timeInSeconds) => {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
-const formatScrubTime = (timeInSeconds) => {
-  const sign = timeInSeconds >= 0 ? '+' : '-';
-  return `${sign}${formatTime(Math.abs(timeInSeconds))}`;
+const formatSeekTime = (timeInSeconds, isOffset = false) => {
+  if (isOffset) {
+    const sign = timeInSeconds >= 0 ? '+' : '';
+    return `${sign}${Math.round(timeInSeconds)}s`;
+  }
+  return formatTime(timeInSeconds);
+};
+
+// Calculate seek step multiplier based on time held
+const getSeekMultiplier = (timeHeld) => {
+  if (timeHeld < CONTINUOUS_SEEK_ACCELERATION_TIME) return 1;
+  return Math.min(
+    MAX_SEEK_MULTIPLIER,
+    1 + Math.floor((timeHeld - CONTINUOUS_SEEK_ACCELERATION_TIME) / 1000)
+  );
 };
 
 // --- Main Player Component ---
@@ -169,13 +332,33 @@ const MPDPlayer = ({
   const lastTapTimeRef = useRef(0);
   const gestureRef = useRef({ type: null, startX: 0, startTime: 0, didScrub: false });
   const feedbackTimeoutRef = useRef(null);
-  const isMouseOverRef = useRef(false); // NEW: To track if mouse is over the player
+  const isMouseOverRef = useRef(false);
+  const progressHoverRef = useRef(false);
+
+  // Enhanced seeking refs
+  const seekingRef = useRef({ 
+    isActive: false, 
+    direction: null, 
+    startTime: 0, 
+    targetTime: 0,
+    lastSeekTime: 0,
+    currentMultiplier: 1
+  });
+  const seekIntervalRef = useRef(null);
+
+  // Touch state tracking
+  const touchStateRef = useRef({
+    isTouching: false,
+    preventControlsHide: false,
+  });
 
   // Player state
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [bufferedTime, setBufferedTime] = useState(0);
   const [isBuffering, setIsBuffering] = useState(true);
+  const [isSeeking, setIsSeeking] = useState(false);
   const [error, setError] = useState(null);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -191,11 +374,20 @@ const MPDPlayer = ({
   const [isMuted, setIsMuted] = useState(false);
   const [volumeSliderAnchorEl, setVolumeSliderAnchorEl] = useState(null);
 
-  // Gesture & Feedback state
-  const [seekFeedback, setSeekFeedback] = useState({ active: false, type: '' });
-  const [scrubFeedback, setScrubFeedback] = useState({ active: false, timeOffset: 0 });
-  const [volumeFeedback, setVolumeFeedback] = useState({ active: false, level: 0 });
+  // Enhanced feedback state
+  const [seekFeedback, setSeekFeedback] = useState({ active: false, type: '', time: 0, multiplier: 1 });
+  const [scrubFeedback, setScrubFeedback] = useState({ active: false, time: 0 });
+  const [volumeFeedback, setVolumeFeedback] = useState({ active: false, level: 0, muted: false });
   const [screenshotFeedback, setScreenshotFeedback] = useState({ active: false });
+
+  // Enhanced seek feedback state
+  const [continuousSeekFeedback, setContinuousSeekFeedback] = useState({ 
+    active: false, 
+    type: '', 
+    targetTime: 0,
+    multiplier: 1,
+    isSmooth: false 
+  });
 
   // --- Core Player & Event Listener Logic ---
   useEffect(() => {
@@ -248,15 +440,15 @@ const MPDPlayer = ({
       });
     }
     if (licenseUrl) {
-        networkingEngine.registerRequestFilter((type, request) => {
-            if (type === shaka.net.NetworkingEngine.RequestType.LICENSE) {
-              if (licenseAuthToken) request.headers['Authorization'] = `Bearer ${licenseAuthToken}`;
-              if (clientId) {
-                request.headers['Client-Id'] = clientId;
-                request.headers['Client-Type'] = 'WEB';
-              }
-            }
-        });
+      networkingEngine.registerRequestFilter((type, request) => {
+        if (type === shaka.net.NetworkingEngine.RequestType.LICENSE) {
+          if (licenseAuthToken) request.headers['Authorization'] = `Bearer ${licenseAuthToken}`;
+          if (clientId) {
+            request.headers['Client-Id'] = clientId;
+            request.headers['Client-Type'] = 'WEB';
+          }
+        }
+      });
     }
 
     player.configure({
@@ -284,12 +476,13 @@ const MPDPlayer = ({
 
   const triggerVolumeFeedback = useCallback((level, muted) => {
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
-    setVolumeFeedback({ active: true, level: muted ? 0 : level });
+    setVolumeFeedback({ active: true, level, muted });
     feedbackTimeoutRef.current = setTimeout(() => {
-      setVolumeFeedback({ active: false, level: 0 });
-    }, 1500);
+      setVolumeFeedback({ active: false, level: 0, muted: false });
+    }, 1200);
   }, []);
 
+  // Enhanced buffer tracking
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -300,7 +493,7 @@ const MPDPlayer = ({
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
     const onTimeUpdate = () => {
-      if (scrubTime === null) {
+      if (scrubTime === null && !seekingRef.current.isActive) {
         setCurrentTime(video.currentTime);
       }
     };
@@ -310,6 +503,13 @@ const MPDPlayer = ({
       setVolume(video.volume);
       setIsMuted(video.muted);
     };
+    const onProgress = () => {
+      if (video.buffered.length > 0) {
+        setBufferedTime(video.buffered.end(video.buffered.length - 1));
+      }
+    };
+    const onSeeking = () => setIsSeeking(true);
+    const onSeeked = () => setIsSeeking(false);
 
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
@@ -317,6 +517,9 @@ const MPDPlayer = ({
     video.addEventListener('durationchange', onDurationChange);
     video.addEventListener('ratechange', onRateChange);
     video.addEventListener('volumechange', onVolumeChange);
+    video.addEventListener('progress', onProgress);
+    video.addEventListener('seeking', onSeeking);
+    video.addEventListener('seeked', onSeeked);
 
     return () => {
       video.removeEventListener('play', onPlay);
@@ -325,33 +528,39 @@ const MPDPlayer = ({
       video.removeEventListener('durationchange', onDurationChange);
       video.removeEventListener('ratechange', onRateChange);
       video.removeEventListener('volumechange', onVolumeChange);
+      video.removeEventListener('progress', onProgress);
+      video.removeEventListener('seeking', onSeeking);
+      video.removeEventListener('seeked', onSeeked);
     };
   }, [scrubTime, volume, isMuted]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-        const isCurrentlyFullscreen = !!document.fullscreenElement;
-        setIsFullscreen(isCurrentlyFullscreen);
-    }
+      const isCurrentlyFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isCurrentlyFullscreen);
+    };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // Enhanced controls visibility logic
   const scheduleHideControls = useCallback(() => {
+    if (touchStateRef.current.preventControlsHide) return;
+    
     clearTimeout(controlsTimeoutRef.current);
     controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying && isFullscreen) {
+      if (isPlaying && isFullscreen && !progressHoverRef.current && !touchStateRef.current.isTouching) {
         setShowControls(false);
         setQualityMenuAnchorEl(null);
         setRateMenuAnchorEl(null);
         setVolumeSliderAnchorEl(null);
       }
-    }, 4000);
+    }, 3500);
   }, [isPlaying, isFullscreen]);
 
   useEffect(() => {
     if (isFullscreen) {
-      if (showControls) {
+      if (showControls && !touchStateRef.current.isTouching) {
         scheduleHideControls();
       }
     } else {
@@ -369,13 +578,97 @@ const MPDPlayer = ({
 
   const handleSeek = useCallback((offset) => {
     if (!videoRef.current || !duration) return;
-    videoRef.current.currentTime = Math.max(0, Math.min(duration, videoRef.current.currentTime + offset));
+    const newTime = Math.max(0, Math.min(duration, videoRef.current.currentTime + offset));
+    videoRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+    return newTime;
   }, [duration]);
 
-  const triggerSeekFeedback = useCallback((type) => {
+  const triggerSeekFeedback = useCallback((type, targetTime, multiplier = 1) => {
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
-    setSeekFeedback({ active: true, type });
-    feedbackTimeoutRef.current = setTimeout(() => setSeekFeedback({ active: false, type: '' }), 500);
+    setSeekFeedback({ active: true, type, time: targetTime, multiplier });
+    feedbackTimeoutRef.current = setTimeout(() => {
+      setSeekFeedback({ active: false, type: '', time: 0, multiplier: 1 });
+    }, 800);
+  }, []);
+
+  // Enhanced continuous seeking with proper step multiples
+  const startContinuousSeeking = useCallback((direction) => {
+    if (seekingRef.current.isActive || !videoRef.current || !duration) return;
+
+    const currentVideoTime = videoRef.current.currentTime;
+    seekingRef.current = {
+      isActive: true,
+      direction,
+      startTime: Date.now(),
+      targetTime: currentVideoTime,
+      lastSeekTime: Date.now(),
+      currentMultiplier: 1
+    };
+
+    setContinuousSeekFeedback({ 
+      active: true, 
+      type: direction, 
+      targetTime: currentVideoTime,
+      multiplier: 1,
+      isSmooth: true 
+    });
+
+    const performSeek = () => {
+      if (!seekingRef.current.isActive || !videoRef.current) return;
+
+      const now = Date.now();
+      const timeSinceStart = now - seekingRef.current.startTime;
+      const timeSinceLastSeek = now - seekingRef.current.lastSeekTime;
+      
+      // Calculate multiplier based on time held
+      const newMultiplier = getSeekMultiplier(timeSinceStart);
+      seekingRef.current.currentMultiplier = newMultiplier;
+
+      // Only seek if enough time has passed (throttling)
+      const seekInterval = Math.max(100, 300 / newMultiplier); // Faster intervals for higher multipliers
+      
+      if (timeSinceLastSeek >= seekInterval) {
+        const offset = (direction === 'forward' ? SEEK_STEP : -SEEK_STEP) * newMultiplier;
+        seekingRef.current.targetTime = Math.max(0, Math.min(duration, seekingRef.current.targetTime + offset));
+        seekingRef.current.lastSeekTime = now;
+
+        videoRef.current.currentTime = seekingRef.current.targetTime;
+        setCurrentTime(seekingRef.current.targetTime);
+
+        setContinuousSeekFeedback({
+          active: true,
+          type: direction,
+          targetTime: seekingRef.current.targetTime,
+          multiplier: newMultiplier,
+          isSmooth: true
+        });
+      }
+
+      seekIntervalRef.current = requestAnimationFrame(performSeek);
+    };
+
+    performSeek();
+  }, [duration]);
+
+  const stopContinuousSeeking = useCallback(() => {
+    if (!seekingRef.current.isActive) return;
+
+    seekingRef.current.isActive = false;
+    if (seekIntervalRef.current) {
+      cancelAnimationFrame(seekIntervalRef.current);
+      seekIntervalRef.current = null;
+    }
+
+    setTimeout(() => {
+      setContinuousSeekFeedback({ 
+        active: false, 
+        type: '', 
+        targetTime: 0, 
+        multiplier: 1, 
+        isSmooth: false 
+      });
+    }, 600);
   }, []);
 
   const handleContainerClick = useCallback((e) => {
@@ -390,12 +683,14 @@ const MPDPlayer = ({
     if (isDoubleTap) {
       const rect = containerRef.current.getBoundingClientRect();
       const tapX = e.clientX - rect.left;
-      if (tapX < rect.width / 2) {
-        handleSeek(-10);
-        triggerSeekFeedback('backward');
+      const isLeftSide = tapX < rect.width / 2;
+      
+      if (isLeftSide) {
+        const newTime = handleSeek(-10);
+        triggerSeekFeedback('backward', newTime);
       } else {
-        handleSeek(10);
-        triggerSeekFeedback('forward');
+        const newTime = handleSeek(10);
+        triggerSeekFeedback('forward', newTime);
       }
       lastTapTimeRef.current = 0;
     } else {
@@ -403,6 +698,7 @@ const MPDPlayer = ({
     }
   }, [handleSeek, triggerSeekFeedback]);
 
+  // Enhanced touch handling to prevent control flickering
   const handleTouchStart = useCallback((e) => {
     if (e.touches.length === 1 && duration > 0) {
       const touch = e.touches[0];
@@ -412,7 +708,14 @@ const MPDPlayer = ({
         startTime: videoRef.current.currentTime,
         didScrub: false,
       };
+      
+      // Set touch state and prevent controls from hiding
+      touchStateRef.current.isTouching = true;
+      touchStateRef.current.preventControlsHide = true;
       clearTimeout(controlsTimeoutRef.current);
+      
+      // Show controls during touch
+      setShowControls(true);
     }
   }, [duration]);
 
@@ -423,18 +726,19 @@ const MPDPlayer = ({
     const touch = e.touches[0];
     const deltaX = touch.clientX - gestureRef.current.startX;
 
-    if (!gestureRef.current.type && Math.abs(deltaX) > 10) {
+    if (!gestureRef.current.type && Math.abs(deltaX) > 15) {
       gestureRef.current.type = 'scrub';
     }
 
     if (gestureRef.current.type === 'scrub') {
       const rect = containerRef.current.getBoundingClientRect();
-      const seekRange = Math.min(duration, 300);
-      const timeOffset = (deltaX / (rect.width * HORIZONTAL_SEEK_SENSITIVITY)) * seekRange;
-      
+      const seekRange = Math.min(duration, 600);
+      const sensitivity = rect.width * HORIZONTAL_SEEK_SENSITIVITY;
+      const timeOffset = (deltaX / sensitivity) * seekRange;
+
       const newPreviewTime = Math.max(0, Math.min(duration, gestureRef.current.startTime + timeOffset));
       setScrubTime(newPreviewTime);
-      setScrubFeedback({ active: true, timeOffset });
+      setScrubFeedback({ active: true, time: newPreviewTime });
     }
   }, [duration]);
 
@@ -442,12 +746,22 @@ const MPDPlayer = ({
     if (gestureRef.current.type === 'scrub' && scrubTime !== null) {
       if (videoRef.current) {
         videoRef.current.currentTime = scrubTime;
+        setCurrentTime(scrubTime);
       }
       gestureRef.current.didScrub = true;
     }
+    
     setScrubTime(null);
     gestureRef.current.type = null;
-    setTimeout(() => setScrubFeedback({ active: false, timeOffset: 0 }), 500);
+    
+    // Reset touch state
+    touchStateRef.current.isTouching = false;
+    setTimeout(() => {
+      touchStateRef.current.preventControlsHide = false;
+      setScrubFeedback({ active: false, time: 0 });
+    }, 400);
+    
+    // Resume normal control hiding behavior
     scheduleHideControls();
   }, [scrubTime, scheduleHideControls]);
 
@@ -484,7 +798,7 @@ const MPDPlayer = ({
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
   }, [duration]);
-  
+
   const handleFullscreenToggle = useCallback(() => {
     const elem = containerRef.current;
     if (!document.fullscreenElement) {
@@ -496,14 +810,12 @@ const MPDPlayer = ({
     }
   }, []);
 
-  // --- Keyboard, Volume, and Screenshot Handlers ---
-
   const handleVolumeChange = useCallback((delta) => {
     if (!videoRef.current) return;
     const newVolume = Math.max(0, Math.min(1, videoRef.current.volume + delta));
     videoRef.current.volume = newVolume;
-    videoRef.current.muted = false;
-    triggerVolumeFeedback(newVolume, false);
+    if (newVolume > 0) videoRef.current.muted = false;
+    triggerVolumeFeedback(newVolume, newVolume === 0);
   }, [triggerVolumeFeedback]);
 
   const toggleMute = useCallback(() => {
@@ -526,11 +838,11 @@ const MPDPlayer = ({
     setScreenshotFeedback({ active: true });
     feedbackTimeoutRef.current = setTimeout(() => {
       setScreenshotFeedback({ active: false });
-    }, 1500);
+    }, 2000);
 
     try {
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-      await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]);
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
       console.log('Screenshot copied to clipboard.');
     } catch (err) {
       console.error('Failed to copy screenshot to clipboard:', err);
@@ -545,56 +857,82 @@ const MPDPlayer = ({
     document.body.removeChild(link);
   }, []);
 
-  // MODIFIED: This useEffect now attaches to the document to work in fullscreen
+  // Enhanced keyboard handling with proper seek step multiples
   useEffect(() => {
+    let keyPressedMap = {};
+
     const handleKeyDown = (e) => {
-      // Only respond if the mouse is over the player or if it's in fullscreen.
-      // This prevents multiple players on a page from all responding.
       if (!isMouseOverRef.current && !document.fullscreenElement) {
         return;
       }
 
       const { key, target } = e;
-      // Ignore keyboard events when focused on an input field
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
         return;
       }
-      
+
+      if (keyPressedMap[key]) return;
+      keyPressedMap[key] = true;
+
       const keyMap = {
-        ' ': togglePlayPause,
-        'f': handleFullscreenToggle,
-        'm': toggleMute,
-        's': handleScreenshot,
+        ' ': () => { e.preventDefault(); togglePlayPause(); },
+        'f': () => { e.preventDefault(); handleFullscreenToggle(); },
+        'm': () => { e.preventDefault(); toggleMute(); },
+        's': () => { e.preventDefault(); handleScreenshot(); },
       };
 
       if (keyMap[key.toLowerCase()]) {
-        e.preventDefault();
         keyMap[key.toLowerCase()]();
       } else if (key === 'ArrowRight') {
         e.preventDefault();
-        handleSeek(5);
-        triggerSeekFeedback('forward');
+        if (!seekingRef.current.isActive) {
+          const newTime = handleSeek(SEEK_STEP);
+          triggerSeekFeedback('forward', newTime);
+        } else {
+          // If already seeking, don't start continuous seeking again
+          return;
+        }
+        startContinuousSeeking('forward');
       } else if (key === 'ArrowLeft') {
         e.preventDefault();
-        handleSeek(-5);
-        triggerSeekFeedback('backward');
+        if (!seekingRef.current.isActive) {
+          const newTime = handleSeek(-SEEK_STEP);
+          triggerSeekFeedback('backward', newTime);
+        } else {
+          // If already seeking, don't start continuous seeking again
+          return;
+        }
+        startContinuousSeeking('backward');
       } else if (key === 'ArrowUp') {
         e.preventDefault();
-        handleVolumeChange(0.1);
+        handleVolumeChange(VOLUME_STEP);
       } else if (key === 'ArrowDown') {
         e.preventDefault();
-        handleVolumeChange(-0.1);
+        handleVolumeChange(-VOLUME_STEP);
       }
     };
 
-    // Attach listener to the document
-    document.addEventListener('keydown', handleKeyDown);
-    // Cleanup listener when the component unmounts
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [togglePlayPause, handleFullscreenToggle, toggleMute, handleSeek, triggerSeekFeedback, handleVolumeChange, handleScreenshot]);
+    const handleKeyUp = (e) => {
+      const { key } = e;
+      keyPressedMap[key] = false;
 
+      if (key === 'ArrowRight' || key === 'ArrowLeft') {
+        stopContinuousSeeking();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
+      stopContinuousSeeking();
+    };
+  }, [togglePlayPause, handleFullscreenToggle, toggleMute, handleSeek, triggerSeekFeedback, handleVolumeChange, handleScreenshot, startContinuousSeeking, stopContinuousSeeking]);
 
   const displayTime = scrubTime !== null ? scrubTime : currentTime;
+  const bufferProgress = duration ? (bufferedTime / duration) * 100 : 0;
 
   return (
     <PlayerWrapper
@@ -612,37 +950,99 @@ const MPDPlayer = ({
         {/* --- Status & Feedback Overlays --- */}
         <Fade in={isBuffering && !error}>
           <Box sx={{ position: 'absolute', zIndex: 10, color: 'white' }}>
-            <CircularProgress color="inherit" />
+            <CircularProgress color="inherit" size={48} thickness={2} />
           </Box>
         </Fade>
+
+        {/* Seeking spinner */}
+        <Fade in={isSeeking && !scrubFeedback.active && !continuousSeekFeedback.active}>
+          <SeekingSpinner size={32} thickness={3} />
+        </Fade>
+
         {error && (
-          <Box sx={{ position: 'absolute', p: 2, zIndex: 10 }}>
-            <Alert severity="error">{error}</Alert>
+          <Box sx={{ position: 'absolute', p: 3, zIndex: 10, maxWidth: '80%' }}>
+            <Alert severity="error" sx={{ borderRadius: 2 }}>{error}</Alert>
           </Box>
         )}
+
+        {/* Enhanced Single Seek Feedback */}
         <Fade in={seekFeedback.active}>
-          <FeedbackAnimation sx={{ left: seekFeedback.type === 'forward' ? 'auto' : '15%', right: seekFeedback.type === 'forward' ? '15%' : 'auto' }}>
-            {seekFeedback.type === 'forward' ? <Forward10 fontSize="large" /> : <Replay10 fontSize="large" />}
+          <FeedbackAnimation 
+            variant="seek"
+            sx={{ 
+              left: seekFeedback.type === 'forward' ? '60%' : '40%',
+              transform: seekFeedback.type === 'forward' ? 'translate(-40%, -50%)' : 'translate(-60%, -50%)'
+            }}
+          >
+            {seekFeedback.type === 'forward' ? 
+              <Forward10 fontSize="large" /> : 
+              <Replay10 fontSize="large" />
+            }
+            <Box sx={{ ml: 1.5, textAlign: 'center' }}>
+              <Typography variant="h6" component="p" sx={{ fontWeight: 600 }}>
+                {formatTime(seekFeedback.time)}
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                {seekFeedback.type === 'forward' ? `+${SEEK_STEP * seekFeedback.multiplier}s` : `-${SEEK_STEP * seekFeedback.multiplier}s`}
+              </Typography>
+            </Box>
           </FeedbackAnimation>
         </Fade>
+
+        {/* Enhanced Continuous Seek Feedback */}
+        <Fade in={continuousSeekFeedback.active}>
+          <FeedbackAnimation variant="seek">
+            {continuousSeekFeedback.type === 'forward' ? 
+              <FastForward fontSize="large" /> : 
+              <Replay fontSize="large" />
+            }
+            <Box sx={{ ml: 1.5, textAlign: 'center' }}>
+              <Typography variant="h6" component="p" sx={{ fontWeight: 600 }}>
+                {formatTime(continuousSeekFeedback.targetTime)}
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                {continuousSeekFeedback.multiplier > 1 
+                  ? `${continuousSeekFeedback.multiplier}x Speed` 
+                  : 'Seeking...'
+                }
+              </Typography>
+            </Box>
+          </FeedbackAnimation>
+        </Fade>
+
+        {/* Enhanced Scrub Feedback */}
         <Fade in={scrubFeedback.active}>
-          <FeedbackAnimation>
-            <Typography variant="h5" component="p">{formatScrubTime(scrubFeedback.timeOffset)}</Typography>
+          <FeedbackAnimation variant="seek">
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h6" component="p" sx={{ fontWeight: 600 }}>
+                {formatTime(scrubFeedback.time)}
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                Scrubbing
+              </Typography>
+            </Box>
           </FeedbackAnimation>
         </Fade>
+
+        {/* Enhanced Volume Feedback */}
         <Fade in={volumeFeedback.active}>
           <FeedbackAnimation>
-            {volumeFeedback.level === 0 ? <VolumeOff fontSize="large" /> : <VolumeUp fontSize="large" />}
-            <Typography variant="h5" component="p" sx={{ ml: 1, minWidth: '50px' }}>
-              {`${Math.round(volumeFeedback.level * 100)}%`}
+            {volumeFeedback.muted || volumeFeedback.level === 0 ? 
+              <VolumeOff fontSize="large" /> : 
+              volumeFeedback.level < 0.5 ? <VolumeDown fontSize="large" /> : <VolumeUp fontSize="large" />
+            }
+            <Typography variant="h6" component="p" sx={{ ml: 1.5, minWidth: '60px', fontWeight: 600 }}>
+              {volumeFeedback.muted ? 'Muted' : `${Math.round(volumeFeedback.level * 100)}%`}
             </Typography>
           </FeedbackAnimation>
         </Fade>
+
+        {/* Enhanced Screenshot Feedback */}
         <Fade in={screenshotFeedback.active}>
           <FeedbackAnimation>
             <CameraAlt fontSize="large" />
-            <Typography variant="h6" component="p" sx={{ ml: 1 }}>
-              Saved
+            <Typography variant="h6" component="p" sx={{ ml: 1.5, fontWeight: 600 }}>
+              Screenshot Saved
             </Typography>
           </FeedbackAnimation>
         </Fade>
@@ -655,80 +1055,187 @@ const MPDPlayer = ({
           onTouchEnd={handleTouchEnd}
         />
 
-        {/* --- Always-on progress bar for fullscreen --- */}
+        {/* --- Enhanced Always-on progress bar for fullscreen --- */}
         {isFullscreen && !error && (
-          <PersistentProgressBarContainer onClick={handlePersistentProgressClick}>
+          <PersistentProgressBarContainer 
+            onClick={handlePersistentProgressClick}
+            onMouseEnter={() => { progressHoverRef.current = true; }}
+            onMouseLeave={() => { progressHoverRef.current = false; }}
+          >
             <PersistentProgressBarGauge
               style={{ transform: `scaleX(${duration ? currentTime / duration : 0})` }}
             />
           </PersistentProgressBarContainer>
         )}
 
-        {/* --- Primary On-Video Controls --- */}
+        {/* --- Enhanced Primary On-Video Controls --- */}
         <Fade in={showControls && !error}>
-          <ControlsOverlay isFullscreen={isFullscreen}>
-            <Slider
-              aria-label="Video Progress"
-              value={duration ? (displayTime / duration) * 100 : 0}
-              onChange={handleProgressChange}
-              sx={{
-                color: 'rgba(255, 255, 255, 0.87)',
-                '& .MuiSlider-thumb': { '&:hover, &.Mui-focusVisible': { boxShadow: '0px 0px 0px 8px rgba(255, 255, 255, 0.16)' } },
-                '& .MuiSlider-rail': { opacity: 0.28 },
-              }}
-            />
-            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-              <IconButton aria-label={isPlaying ? 'Pause' : 'Play'} onClick={togglePlayPause} color="inherit">
-                {isPlaying ? <Pause /> : <PlayArrow />}
-              </IconButton>
-              <IconButton aria-label="Volume" onClick={(e) => setVolumeSliderAnchorEl(e.currentTarget)} color="inherit">
-                {isMuted || volume === 0 ? <VolumeOff /> : volume < 0.5 ? <VolumeDown /> : <VolumeUp />}
-              </IconButton>
-              <Typography variant="body2" sx={{ ml: 1, minWidth: '90px' }}>
-                {formatTime(displayTime)} / {formatTime(duration)}
-              </Typography>
-              <Box sx={{ flexGrow: 1 }} />
-              <IconButton aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'} onClick={handleFullscreenToggle} color="inherit">
-                {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
-              </IconButton>
+          <ControlsOverlay 
+            isFullscreen={isFullscreen} 
+            isTouching={touchStateRef.current.isTouching}
+          >
+            <Box sx={{ position: 'relative' }}>
+              <EnhancedSlider
+                aria-label="Video Progress"
+                value={duration ? (displayTime / duration) * 100 : 0}
+                onChange={handleProgressChange}
+              />
+              {/* Buffer progress indicator */}
+              <BufferProgressBar
+                sx={{
+                  width: `${bufferProgress}%`,
+                }}
+              />
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Tooltip title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}>
+                  <ControlButton onClick={togglePlayPause} size="large">
+                    {isPlaying ? <Pause fontSize="large" /> : <PlayArrow fontSize="large" />}
+                  </ControlButton>
+                </Tooltip>
+                
+                <Tooltip title="Volume (M to mute)">
+                  <ControlButton onClick={(e) => setVolumeSliderAnchorEl(e.currentTarget)}>
+                    {isMuted || volume === 0 ? <VolumeOff /> : 
+                     volume < 0.5 ? <VolumeDown /> : <VolumeUp />}
+                  </ControlButton>
+                </Tooltip>
+
+                <Typography variant="body2" sx={{ ml: 1, color: 'rgba(255, 255, 255, 0.9)', fontWeight: 500 }}>
+                  {formatTime(displayTime)} / {formatTime(duration)}
+                </Typography>
+              </Box>
+
+              <Tooltip title={isFullscreen ? 'Exit Fullscreen (F)' : 'Enter Fullscreen (F)'}>
+                <ControlButton onClick={handleFullscreenToggle}>
+                  {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
+                </ControlButton>
+              </Tooltip>
             </Box>
           </ControlsOverlay>
         </Fade>
       </PlayerContainer>
 
-      {/* --- External Secondary Control Panel --- */}
+      {/* --- Enhanced External Secondary Control Panel --- */}
       <Fade in={(!isFullscreen || showControls) && !error}>
         <ControlPanel>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%', gap: { xs: 0, sm: 1 } }}>
-            <Button variant="text" color="inherit" startIcon={<QualityIcon />} onClick={(e) => setQualityMenuAnchorEl(e.currentTarget)} sx={{ textTransform: 'none', color: 'text.secondary' }}>
-              {selectedQualityId === null ? AUTO_QUALITY_LABEL : `${availableQualities.find((q) => q.id === selectedQualityId)?.height}p`}
-            </Button>
-            <Button variant="text" color="inherit" startIcon={<SpeedIcon />} onClick={(e) => setRateMenuAnchorEl(e.currentTarget)} sx={{ textTransform: 'none', color: 'text.secondary' }}>
-              {playbackRate === 1.0 ? 'Speed' : `${playbackRate}x`}
-            </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Tooltip title="Take Screenshot (S)">
+                <IconButton onClick={handleScreenshot} size="small" sx={{ color: 'text.secondary' }}>
+                  <CameraAlt />
+                </IconButton>
+              </Tooltip>
+            </Box>
+            
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Button 
+                variant="text" 
+                color="inherit" 
+                startIcon={<QualityIcon />} 
+                onClick={(e) => setQualityMenuAnchorEl(e.currentTarget)} 
+                sx={{ 
+                  textTransform: 'none', 
+                  color: 'text.secondary',
+                  minWidth: 'auto',
+                  '&:hover': { backgroundColor: 'action.hover' }
+                }}
+              >
+                {selectedQualityId === null ? 
+                  AUTO_QUALITY_LABEL : 
+                  `${availableQualities.find((q) => q.id === selectedQualityId)?.height}p`
+                }
+              </Button>
+              
+              <Button 
+                variant="text" 
+                color="inherit" 
+                startIcon={<SpeedIcon />} 
+                onClick={(e) => setRateMenuAnchorEl(e.currentTarget)} 
+                sx={{ 
+                  textTransform: 'none', 
+                  color: 'text.secondary',
+                  minWidth: 'auto',
+                  '&:hover': { backgroundColor: 'action.hover' }
+                }}
+              >
+                {playbackRate === 1.0 ? 'Speed' : `${playbackRate}x`}
+              </Button>
+            </Box>
           </Box>
         </ControlPanel>
       </Fade>
 
-      {/* --- Settings Menus & Popovers --- */}
-      <Menu anchorEl={qualityMenuAnchorEl} open={Boolean(qualityMenuAnchorEl)} onClose={() => setQualityMenuAnchorEl(null)}>
-        <MenuItem onClick={() => handleQualityChange(null)} selected={selectedQualityId === null}>{AUTO_QUALITY_LABEL}</MenuItem>
+      {/* --- Enhanced Settings Menus & Popovers --- */}
+      <Menu 
+        anchorEl={qualityMenuAnchorEl} 
+        open={Boolean(qualityMenuAnchorEl)} 
+        onClose={() => setQualityMenuAnchorEl(null)}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            minWidth: 120,
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+          }
+        }}
+      >
+        <MenuItem 
+          onClick={() => handleQualityChange(null)} 
+          selected={selectedQualityId === null}
+          sx={{ borderRadius: 1, mx: 0.5 }}
+        >
+          {AUTO_QUALITY_LABEL}
+        </MenuItem>
         {availableQualities.map((track) => (
-          <MenuItem key={track.id} onClick={() => handleQualityChange(track)} selected={selectedQualityId === track.id}>{track.height}p</MenuItem>
+          <MenuItem 
+            key={track.id} 
+            onClick={() => handleQualityChange(track)} 
+            selected={selectedQualityId === track.id}
+            sx={{ borderRadius: 1, mx: 0.5 }}
+          >
+            {track.height}p
+          </MenuItem>
         ))}
       </Menu>
-      <Menu anchorEl={rateMenuAnchorEl} open={Boolean(rateMenuAnchorEl)} onClose={() => setRateMenuAnchorEl(null)}>
+
+      <Menu 
+        anchorEl={rateMenuAnchorEl} 
+        open={Boolean(rateMenuAnchorEl)} 
+        onClose={() => setRateMenuAnchorEl(null)}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            minWidth: 100,
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+          }
+        }}
+      >
         {PLAYBACK_RATES.map((rate) => (
-          <MenuItem key={rate} onClick={() => handleRateChange(rate)} selected={playbackRate === rate}>{rate === 1.0 ? 'Normal' : `${rate}x`}</MenuItem>
+          <MenuItem 
+            key={rate} 
+            onClick={() => handleRateChange(rate)} 
+            selected={playbackRate === rate}
+            sx={{ borderRadius: 1, mx: 0.5 }}
+          >
+            {rate === 1.0 ? 'Normal' : `${rate}x`}
+          </MenuItem>
         ))}
       </Menu>
+
       <Popover
         open={Boolean(volumeSliderAnchorEl)}
         anchorEl={volumeSliderAnchorEl}
         onClose={() => setVolumeSliderAnchorEl(null)}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        PaperProps={{ sx: { backgroundColor: 'rgba(40, 40, 40, 0.85)', backdropFilter: 'blur(4px)', color: 'white', borderRadius: '16px', overflow: 'hidden' } }}
+        PaperProps={{ 
+          sx: { 
+            backgroundColor: 'transparent',
+            boxShadow: 'none',
+            overflow: 'visible'
+          } 
+        }}
       >
         <VolumeSliderContainer>
           <Slider
@@ -740,7 +1247,14 @@ const MPDPlayer = ({
               videoRef.current.volume = newVol;
               videoRef.current.muted = newVol === 0;
             }}
-            sx={{ color: 'white' }}
+            sx={{ 
+              color: 'white',
+              '& .MuiSlider-thumb': {
+                '&:hover, &.Mui-focusVisible': {
+                  boxShadow: '0px 0px 0px 8px rgba(255, 255, 255, 0.16)',
+                },
+              },
+            }}
           />
         </VolumeSliderContainer>
       </Popover>
