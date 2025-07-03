@@ -364,6 +364,16 @@ const MPDPlayer = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [scrubTime, setScrubTime] = useState(null);
 
+  // Page visibility and recovery state
+  const [isPageVisible, setIsPageVisible] = useState(!document.hidden);
+  const [shouldReload, setShouldReload] = useState(false);
+
+  // Unified loading state
+  const [loadingState, setLoadingState] = useState({
+    type: null, // 'buffering', 'seeking', 'scrubbing', 'continuous-seeking'
+    active: false
+  });
+
   // Settings state
   const [playbackRate, setPlaybackRate] = useState(DEFAULT_PLAYBACK_RATE);
   const [availableQualities, setAvailableQualities] = useState([]);
@@ -389,6 +399,97 @@ const MPDPlayer = ({
     isSmooth: false 
   });
 
+  // Unified loading state management
+  useEffect(() => {
+    if (scrubFeedback.active) {
+      setLoadingState({ type: 'scrubbing', active: true });
+    } else if (continuousSeekFeedback.active) {
+      setLoadingState({ type: 'continuous-seeking', active: true });
+    } else if (isSeeking) {
+      setLoadingState({ type: 'seeking', active: true });
+    } else if (isBuffering) {
+      setLoadingState({ type: 'buffering', active: true });
+    } else {
+      setLoadingState({ type: null, active: false });
+    }
+  }, [scrubFeedback.active, continuousSeekFeedback.active, isSeeking, isBuffering]);
+
+  // Page visibility handling
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const isVisible = !document.hidden;
+      setIsPageVisible(isVisible);
+      
+      if (!isVisible) {
+        // Page is going to background - pause video
+        if (videoRef.current && isPlaying) {
+          videoRef.current.pause();
+        }
+      } else {
+        // Page is coming back to foreground
+        if (shouldReload && playerRef.current) {
+          // Reload the player after coming back from background
+          setTimeout(() => {
+            const currentTime = videoRef.current?.currentTime || 0;
+            reloadPlayer(currentTime);
+            setShouldReload(false);
+          }, 100);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isPlaying, shouldReload]);
+
+  // Reload player function
+  const reloadPlayer = useCallback(async (seekTime = 0) => {
+    if (!playerRef.current || !pwMPDUrl) return;
+    
+    try {
+      setIsBuffering(true);
+      setError(null);
+      
+      // Reload the manifest
+      await playerRef.current.load(pwMPDUrl);
+      
+      // Seek back to where we were
+      if (seekTime > 0 && videoRef.current) {
+        videoRef.current.currentTime = seekTime;
+      }
+      
+      setIsBuffering(false);
+    } catch (err) {
+      console.error('Failed to reload player:', err);
+      if (err.code !== window.shaka?.util.Error.Code.LOAD_INTERRUPTED) {
+        setError(`Failed to reload video: ${err.message}`);
+      }
+    }
+  }, [pwMPDUrl]);
+
+  // Load with retry logic
+  const loadWithRetry = useCallback(async (url, maxRetries = 3) => {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await playerRef.current.load(url);
+        return; // Success
+      } catch (err) {
+        lastError = err;
+        console.warn(`Load attempt ${attempt} failed:`, err);
+        
+        if (attempt < maxRetries) {
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        }
+      }
+    }
+    
+    // All retries failed
+    throw lastError;
+  }, []);
+
   // --- Core Player & Event Listener Logic ---
   useEffect(() => {
     const shaka = window.shaka;
@@ -409,8 +510,25 @@ const MPDPlayer = ({
 
     player.addEventListener('error', (event) => {
       console.error('Shaka Error:', event.detail);
-      setError(`Error: ${event.detail.message} (Code: ${event.detail.code})`);
+      
+      // Handle specific error codes that occur after background/foreground
+      if (event.detail.code === 1003 || event.detail.code === 3016) {
+        console.log('Background recovery error detected, scheduling reload');
+        setShouldReload(true);
+        
+        // If page is currently visible, reload immediately
+        if (!document.hidden) {
+          const currentTime = videoRef.current?.currentTime || 0;
+          setTimeout(() => {
+            reloadPlayer(currentTime);
+            setShouldReload(false);
+          }, 500);
+        }
+      } else {
+        setError(`Error: ${event.detail.message} (Code: ${event.detail.code})`);
+      }
     });
+    
     player.addEventListener('buffering', (event) => setIsBuffering(event.buffering));
 
     const updateQualityTracks = () => {
@@ -432,13 +550,18 @@ const MPDPlayer = ({
     const urlParts = pwMPDUrl.split('?');
     const signatureSuffix = urlParts.length > 1 ? `?${urlParts.slice(1).join('?')}` : '';
     const networkingEngine = player.getNetworkingEngine();
+    
     if (signatureSuffix) {
       networkingEngine.registerRequestFilter((type, request) => {
         if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT) {
-          request.uris[0] += signatureSuffix;
+          // Ensure we don't double-add the signature
+          if (!request.uris[0].includes('?')) {
+            request.uris[0] += signatureSuffix;
+          }
         }
       });
     }
+    
     if (licenseUrl) {
       networkingEngine.registerRequestFilter((type, request) => {
         if (type === shaka.net.NetworkingEngine.RequestType.LICENSE) {
@@ -460,8 +583,7 @@ const MPDPlayer = ({
       abr: { enabled: true },
     });
 
-    player
-      .load(pwMPDUrl)
+    loadWithRetry(pwMPDUrl)
       .then(() => setIsBuffering(false))
       .catch((err) => {
         if (err.code !== shaka.util.Error.Code.LOAD_INTERRUPTED) {
@@ -472,7 +594,7 @@ const MPDPlayer = ({
     return () => {
       if (playerRef.current) playerRef.current.destroy();
     };
-  }, [pwMPDUrl, drmKey, licenseUrl, licenseAuthToken, clientId]);
+  }, [pwMPDUrl, drmKey, licenseUrl, licenseAuthToken, clientId, loadWithRetry, reloadPlayer]);
 
   const triggerVolumeFeedback = useCallback((level, muted) => {
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
@@ -889,7 +1011,6 @@ const MPDPlayer = ({
           const newTime = handleSeek(SEEK_STEP);
           triggerSeekFeedback('forward', newTime);
         } else {
-          // If already seeking, don't start continuous seeking again
           return;
         }
         startContinuousSeeking('forward');
@@ -899,7 +1020,6 @@ const MPDPlayer = ({
           const newTime = handleSeek(-SEEK_STEP);
           triggerSeekFeedback('backward', newTime);
         } else {
-          // If already seeking, don't start continuous seeking again
           return;
         }
         startContinuousSeeking('backward');
@@ -947,15 +1067,14 @@ const MPDPlayer = ({
           style={{ width: '100%', height: '100%', objectFit: 'contain' }}
         />
 
-        {/* --- Status & Feedback Overlays --- */}
-        <Fade in={isBuffering && !error}>
+        {/* --- Unified Loading Indicators --- */}
+        <Fade in={loadingState.active && loadingState.type === 'buffering'}>
           <Box sx={{ position: 'absolute', zIndex: 10, color: 'white' }}>
             <CircularProgress color="inherit" size={48} thickness={2} />
           </Box>
         </Fade>
 
-        {/* Seeking spinner */}
-        <Fade in={isSeeking && !scrubFeedback.active && !continuousSeekFeedback.active}>
+        <Fade in={loadingState.active && loadingState.type === 'seeking'}>
           <SeekingSpinner size={32} thickness={3} />
         </Fade>
 
