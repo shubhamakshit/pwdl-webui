@@ -97,7 +97,7 @@ export default function VideoPage() {
       <Container maxWidth="lg" sx={{ my: 4 }}>
         <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
         <Typography variant="body1" sx={{ color: 'text.secondary' }}>
-          Please ensure the URL contains valid 'batch_name' and 'id' query parameters (e.g., `?batch_name=yourBatch&id=yourId`).
+          Please ensure the URL contains valid &apos;batch_name&apos; and &apos;id&apos; query parameters (e.g., `?batch_name=yourBatch&id=yourId`).
         </Typography>
       </Container>
     );
