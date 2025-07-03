@@ -3,6 +3,7 @@ import MUIProvider from "../components/MUIProvider";
 import "./globals.css";
 import {Box} from "@mui/material";
 import Navbar from "@/components/Navbar";
+import Script from 'next/script'; // Import Script component
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,9 +25,14 @@ export default function RootLayout({ children }) {
         <html lang="en">
           <head>
             <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/shaka-player/4.3.4/controls.css" />
-            <script src="https://ajax.googleapis.com/ajax/libs/shaka-player/4.3.4/shaka-player.ui.js"></script>
             </head>
         <body className={`${geistSans.variable} ${geistMono.variable}`}>
+
+        {/* Use Next.js Script component for shaka-player.ui.js */}
+        <Script
+            src="https://ajax.googleapis.com/ajax/libs/shaka-player/4.3.4/shaka-player.ui.js"
+            strategy="beforeInteractive" // Or "afterInteractive" depending on your needs
+        />
 
         <MUIProvider>
             <Navbar/>
