@@ -30,10 +30,11 @@ import {
   VolumeOff,
   CameraAlt,
 } from '@mui/icons-material';
+import WebSettingsManager from '@/lib/WebSettingsManager';
 
 // --- Constants for Settings ---
-const PLAYBACK_RATES = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
-const DEFAULT_PLAYBACK_RATE = 1.0;
+const PLAYBACK_RATES = WebSettingsManager.getValue('playback_speeds') || [0.5, 0.75, 1.0, 1.25, 1.5, 2.0] ;
+const DEFAULT_PLAYBACK_RATE = PLAYBACK_RATES[0] || 1.0;
 const AUTO_QUALITY_LABEL = 'Auto';
 const HORIZONTAL_SEEK_SENSITIVITY = 3;
 const ALWAYS_ON_PROGRESS_BAR_HEIGHT = '3px';

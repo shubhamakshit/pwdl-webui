@@ -60,6 +60,10 @@ class WebSettingsManager {
         custom_theme: {
             value: WebSettingsManager.defaultTheme,
             tooltip: "Custom Theme"
+        },
+        'playback_speeds':{
+            value: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
+            tooltip: "Playback Speeds"
         }
     };
 
