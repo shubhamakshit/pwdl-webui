@@ -109,9 +109,33 @@ class API {
     static GET_BATCHES_LECTURES = (batch_name, subject_name, chapter_name) =>
         `${API.base_url}/api/batches/${batch_name}/${subject_name}/${chapter_name}`;
 
-    static GET_SPECIFIC_LECTURE_DETAIL = (batch_name,id) =>
-         `${API.base_url}/api/lecture/${batch_name}/${id}`;
+    /**
+     * Generates the API endpoint for fetching specific lecture details.
+     * Optionally includes 'url' and 'topic_name' as query parameters.
+     *
+     * @param {string} batch_name - The name of the batch.
+     * @param {string} id - The ID of the lecture.
+     * @param {string} [url] - Optional URL to be passed as a query parameter.
+     * @param {string} [topic_name] - Optional topic name to be passed as a query parameter.
+     * @returns {string} The complete API URL.
+     */
+    static GET_SPECIFIC_LECTURE_DETAIL = (batch_name, id, url, topic_name) => {
+        const params = new URLSearchParams();
 
+        if (url) {
+            params.append("url", url);
+        }
+        if (topic_name) {
+            params.append("topic_name", topic_name);
+            params.append("proxy", true);
+        }
+
+        const queryString = params.toString();
+        const baseUrl = `${API.base_url}/api/lecture/${batch_name}/${id}`;
+
+        // Append query string if it exists, otherwise return base URL
+        return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+    };
     static GET_BATCHES_NOTES = (batch_name, subject_name, chapter_name) =>
         `${API.base_url}/api/batches/${batch_name}/${subject_name}/${chapter_name}/notes`;
 

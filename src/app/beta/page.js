@@ -1,14 +1,16 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, Container, CircularProgress, Alert } from '@mui/material';
-import API from "@/Server/api";
-import MPDPlayer from "@/components/MPDPlayer"
+import API from "@/Server/api"; // Assuming this path is correct for your project
+import MPDPlayer from "@/components/MPDPlayer" // Assuming this path is correct for your project
 
 
 export default function VideoPage() {
-  // State to store the extracted batch_name and id from URL
+  // State to store the extracted batch_name, id, url, and topic_name from URL
   const [batchName, setBatchName] = useState(null);
   const [id, setId] = useState(null);
+  const [urlParam, setUrlParam] = useState(null); // Renamed to avoid conflict with 'url' in videoData
+  const [topicNameParam, setTopicNameParam] = useState(null); // Renamed for clarity
 
   // State to store the fetched video data (URL, KID, Key)
   const [videoData, setVideoData] = useState(null);
@@ -19,13 +21,15 @@ export default function VideoPage() {
   // State to manage error messages
   const [error, setError] = useState(null);
 
-  // Effect to extract batch_name and id from the URL query parameters
+  // Effect to extract batch_name, id, url, and topic_name from the URL query parameters
   useEffect(() => {
     // Ensure this code runs only on the client-side where 'window' is defined
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       setBatchName(params.get('batch_name'));
       setId(params.get('id'));
+      setUrlParam(params.get('url')); // Extract the 'url' query parameter
+      setTopicNameParam(params.get('topic_name')); // Extract the 'topic_name' query parameter
     }
   }, []); // Empty dependency array means this effect runs once after the initial render
 
@@ -38,8 +42,14 @@ export default function VideoPage() {
         setError(null); // Clear any previous errors
 
         try {
-          // Construct the API URL using the provided API method
-          const apiUrl = API.GET_SPECIFIC_LECTURE_DETAIL(batchName, id);
+          // Construct the API URL using the provided API method,
+          // now passing urlParam and topicNameParam as well
+          const apiUrl = API.GET_SPECIFIC_LECTURE_DETAIL(
+            batchName,
+            id,
+            urlParam, // Pass the extracted URL parameter
+            topicNameParam // Pass the extracted topic_name parameter
+          );
 
           // Perform the fetch request
           const response = await fetch(apiUrl);
@@ -67,11 +77,9 @@ export default function VideoPage() {
       } else if (batchName === null && id === null) {
         // If both are still null, it means the first useEffect hasn't finished or URL params are truly missing.
         // Keep loading true if we are still waiting for URL params to be parsed.
-        // However, if the first useEffect has run and they are still null, it indicates missing params.
-        // We'll handle the 'missing params' case below once loading is false.
-        setLoading(true); // Still waiting for initial URL parsing
+        setLoading(true);
       } else {
-        // If one or both are null after the initial URL parsing, it means parameters are missing.
+        // If one or both (batchName, id) are null after the initial URL parsing, it means parameters are missing.
         setLoading(false);
         setError('Batch name or ID is missing from the URL. Please check your URL parameters.');
       }
@@ -79,7 +87,7 @@ export default function VideoPage() {
 
     // Call the fetch function
     fetchVideoDetails();
-  }, [batchName, id]); // This effect re-runs whenever batchName or id changes
+  }, [batchName, id, urlParam, topicNameParam]); // Added urlParam and topicNameParam to dependencies
 
   // --- Render Logic based on Loading/Error/Data States ---
 
@@ -98,6 +106,7 @@ export default function VideoPage() {
         <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
         <Typography variant="body1" sx={{ color: 'text.secondary' }}>
           Please ensure the URL contains valid &apos;batch_name&apos; and &apos;id&apos; query parameters (e.g., `?batch_name=yourBatch&id=yourId`).
+          Optionally, you can also include `&url=yourLectureUrl` and `&topic_name=YourTopic`.
         </Typography>
       </Container>
     );
@@ -127,6 +136,9 @@ export default function VideoPage() {
       {/* Display the extracted params for verification */}
       {batchName && <Typography variant="subtitle1" sx={{ color: 'text.primary' }}><strong>Batch Name:</strong> {batchName}</Typography>}
       {id && <Typography variant="subtitle1" sx={{ mb: 2, color: 'text.primary' }}><strong>ID:</strong> {id}</Typography>}
+      {urlParam && <Typography variant="subtitle1" sx={{ color: 'text.primary' }}><strong>URL Parameter:</strong> {urlParam}</Typography>}
+      {topicNameParam && <Typography variant="subtitle1" sx={{ mb: 2, color: 'text.primary' }}><strong>Topic Name Parameter:</strong> {topicNameParam}</Typography>}
+
 
       <MPDPlayer
         pwMPDUrl={videoData.url}

@@ -61,7 +61,6 @@ const ChaptersComponent = () => {
         }
     }, [params.program_name, params.subject_name, params.teacher_name, params.chapter_name]);
 
-
     const fetchNotes = useCallback(async () => {
         const { program_name, subject_name, teacher_name, chapter_name } = params;
 
@@ -86,7 +85,6 @@ const ChaptersComponent = () => {
             for (let i = 0; i < subtopics.length; i++) {
                 if (subtopics[i].name.includes("otes")) {
                     subtopic_slug = subtopics[i].slug;
-
                     break;
                 }
             }
@@ -107,33 +105,45 @@ const ChaptersComponent = () => {
         }
     }, [params.program_name, params.subject_name, params.teacher_name, params.chapter_name]);
 
-    // Handle chapter/lecture click (navigation)
-    const handleChapterClick = useCallback((chapter) => {
-        const { program_name, subject_name, teacher_name } = params;
-        router.push(`/boss/khazana/${program_name}/${subject_name}/${teacher_name}/${chapter.slug}`);
-    }, [params.program_name, params.subject_name, params.teacher_name, router]);
-
-    // Handle selection for download
+    // Handle lecture selection
     const handleLectureSelection = useCallback((data) => {
-        return data.map((item) => item.state);
-    }, []);
+        return data.map((item) => ({
+            ...item.state,
+            batch_name: params.program_name
+        }));
+    }, [params.program_name]);
 
+    // Handle note selection
     const handleNoteSelection = useCallback((data) => {
         return data.map((item) => ({
             link: item.content[0].file.link,
             name: item.content[0].file.name
         }));
-    },[]);
+    }, []);
 
+    // Handle lecture download
+    const handleLectureDownload = useCallback((selectedItems) => {
+        const bossDownloadId = LocalHandler.setBossDownload("", selectedItems);
+        window.location.href = `${window.origin}?boss=${bossDownloadId}`;
+    }, []);
+
+    // Handle notes download
     const handleNotesDownload = useCallback((selectedItems) => {
         copyUtils.copyToClipboard(Utils.curlWithFileName(selectedItems));
     }, []);
 
-    // Handle download of selected lectures
-    const handleDownload = useCallback((selectedItems) => {
-        const bossDownloadId = LocalHandler.setBossDownload("", selectedItems);
-        window.location.href = `${window.origin}?boss=${bossDownloadId}`;
-    }, []);
+    // Handle lecture card click (for general card click, not specifically "watch")
+    const handleLectureCardClick = useCallback((lecture) => {
+        const { program_name, subject_name, teacher_name } = params;
+        router.push(`/boss/khazana/${program_name}/${subject_name}/${teacher_name}/${lecture.slug}`);
+    }, [params.program_name, params.subject_name, params.teacher_name, router]);
+
+    // NEW: Handle Watch button click for lectures
+    const handleWatchClick = useCallback((lecture) => {
+        // Construct the URL as specified for Khazana
+        const watchUrl = `https://laughing-space-waffle-g9rrppjx464fw67x-3000.app.github.dev/beta?batch_name=${lecture.state.batch_name}&id=${lecture.state.id}&url=${lecture.state.lecture_url}&topic_name=${lecture.state.topic_name}`;
+        router.push(watchUrl);
+    }, [router]);
 
     // Memoize tab configurations
     const tabConfigurations = useMemo(() => [
@@ -143,25 +153,30 @@ const ChaptersComponent = () => {
             type: "lecture",
             noDataMessage: "No Lectures.",
             handleSelection: handleLectureSelection,
-            handleDownload: handleDownload,
-            onCardClick: handleChapterClick,
-            fields: []
+            handleDownload: handleLectureDownload,
+            onCardClick: handleLectureCardClick, // General card click
+            onWatchClick: handleWatchClick,     // Specific "Watch" button click
+            fields: ["date"]
         },
         {
             label: "Notes",
             fetchData: fetchNotes,
             type: "notes",
-            noDataMessage: "No Lectures.",
+            noDataMessage: "No Notes.",
             handleSelection: handleNoteSelection,
             handleDownload: handleNotesDownload,
-            onCardClick: handleChapterClick,
+            onCardClick: handleLectureCardClick, // Or a separate handler for notes card click
             fields: []
         }
     ], [
         fetchChapters,
+        fetchNotes,
         handleLectureSelection,
-        handleDownload,
-        handleChapterClick
+        handleNoteSelection,
+        handleLectureDownload,
+        handleNotesDownload,
+        handleLectureCardClick,
+        handleWatchClick // Include the new handler in the dependency array
     ]);
 
     return (

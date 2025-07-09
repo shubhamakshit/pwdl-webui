@@ -560,6 +560,7 @@ const MPDPlayer = ({
     const signatureSuffix = urlParts.length > 1 ? `?${urlParts.slice(1).join('?')}` : '';
     const networkingEngine = player.getNetworkingEngine();
     
+    
     if (signatureSuffix) {
       networkingEngine.registerRequestFilter((type, request) => {
         if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT) {
