@@ -6,8 +6,9 @@ import Navbar from "@/components/Navbar";
 import Script from 'next/script';
 import { CommandPaletteProvider } from "@/hooks/useCommandPalette.js";
 import CommandPaletteInitializer from "@/components/CommandPaletteInitializer.jsx";
-import { commands } from "@/lib/commands.js";
 import { JSExecutionProvider } from "@/hooks/useJSExecution.js";
+import { AlertProvider } from "@/contexts/AlertProvider.jsx";
+import FloatingPaletteButtonWrapper from "@/components/FloatingPaletteButtonWrapper.jsx";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,17 +39,20 @@ export default function RootLayout({ children }) {
         />
 
         <MUIProvider>
-            <JSExecutionProvider>
-                <CommandPaletteProvider>
-                    <CommandPaletteInitializer />
-                    <Navbar/>
-                    <div  suppressHydrationWarning={true}>
-                        <Box p={4}>
-                            {children}
-                        </Box>
-                    </div>
-                </CommandPaletteProvider>
-            </JSExecutionProvider>
+            <AlertProvider>
+                <JSExecutionProvider>
+                    <CommandPaletteProvider>
+                        <CommandPaletteInitializer />
+                        <Navbar/>
+                        <div  suppressHydrationWarning={true}>
+                            <Box p={4}>
+                                {children}
+                            </Box>
+                        </div>
+                        <FloatingPaletteButtonWrapper />
+                    </CommandPaletteProvider>
+                </JSExecutionProvider>
+            </AlertProvider>
         </MUIProvider>
         </body>
         </html>

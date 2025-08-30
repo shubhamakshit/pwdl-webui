@@ -9,16 +9,14 @@ const useAlert = () => {
     const [alertData, setAlertData] = useState({
         message: "",
         severity: "info",
-        onClose: () => setAlertOpen(false)
     });
     const [alertOpen, setAlertOpen] = useState(false);
 
     const setAlertMessage = (message, severity = "info") => {
-        setAlertData((prevState) => ({
-            ...prevState,
+        setAlertData({
             message,
             severity
-        }));
+        });
         setAlertOpen(true);
     };
 
