@@ -173,6 +173,13 @@ class API {
 
     static DELETE_CLIENT = (clientId) =>
         `${API.base_url}/client/${clientId}/delete_client`;
+
+    static GET_TEST_MAPPINGS_FOR_ME = () => `${API.base_url}/api/private/test_mappings_for_me`;
+
+    static DOWNLOAD_TEST = (client_id, test_id) => `${API.base_url}/api/private/${client_id}/test/${test_id}`;
+
+    static GET_PVT_FILE_FOR_A_CLIENT = (client_id, name) =>
+        `${API.base_url}/api/get-private-file/${client_id}/${name}`;
 }
 
 export default API;
