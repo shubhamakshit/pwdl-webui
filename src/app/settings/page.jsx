@@ -64,6 +64,7 @@ export default function SettingsPage() {
             >
                 Reset Web Settings
             </Button>
+            
         </Stack>
     );
 }

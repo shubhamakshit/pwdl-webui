@@ -3,7 +3,11 @@ import MUIProvider from "../components/MUIProvider";
 import "./globals.css";
 import {Box} from "@mui/material";
 import Navbar from "@/components/Navbar";
-import Script from 'next/script'; // Import Script component
+import Script from 'next/script';
+import { CommandPaletteProvider } from "@/hooks/useCommandPalette.js";
+import CommandPaletteInitializer from "@/components/CommandPaletteInitializer.jsx";
+import { commands } from "@/lib/commands.js";
+import { JSExecutionProvider } from "@/hooks/useJSExecution.js";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,19 +32,23 @@ export default function RootLayout({ children }) {
             </head>
         <body className={`${geistSans.variable} ${geistMono.variable}`}>
 
-        {/* Use Next.js Script component for shaka-player.ui.js */}
         <Script
             src="https://ajax.googleapis.com/ajax/libs/shaka-player/4.3.4/shaka-player.ui.js"
-            strategy="beforeInteractive" // Or "afterInteractive" depending on your needs
+            strategy="beforeInteractive"
         />
 
         <MUIProvider>
-            <Navbar/>
-            <div  suppressHydrationWarning={true}>
-                <Box p={4}>
-                    {children}
-                </Box>
-            </div>
+            <JSExecutionProvider>
+                <CommandPaletteProvider>
+                    <CommandPaletteInitializer />
+                    <Navbar/>
+                    <div  suppressHydrationWarning={true}>
+                        <Box p={4}>
+                            {children}
+                        </Box>
+                    </div>
+                </CommandPaletteProvider>
+            </JSExecutionProvider>
         </MUIProvider>
         </body>
         </html>

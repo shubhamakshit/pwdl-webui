@@ -147,7 +147,7 @@ const PrefsComponent = ({
                 );
             }
 
-            if (typeof pref.value === 'object' && !Array.isArray(pref.value)) {
+            if (typeof pref.value === 'object') {
                 return (
                     <AceEditor
                         mode="json"

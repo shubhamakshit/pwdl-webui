@@ -93,18 +93,33 @@ const BaseCard = ({
         <Grid {...gridSize}>
             <Card
                 variant="outlined"
+                tabIndex={0}
                 sx={{
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
                     cursor: 'pointer',
-                    minHeight: 200
+                    minHeight: 200,
+                    '&:focus-visible': {
+                        outline: '2px solid #90caf9', // Example focus style
+                        outlineOffset: '2px',
+                    },
                 }}
                 onClick={selectable ? (e) => {
                     e.stopPropagation();
                     e.preventDefault();
                     handleSelect();
                 } : onClick}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (selectable) {
+                            handleSelect();
+                        } else {
+                            onClick(e);
+                        }
+                    }
+                }}
             >
                 {image && <CardMedia sx={{ height: 140 }} image={image} alt={data.name || "Card image"} />}
 

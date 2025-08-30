@@ -61,6 +61,23 @@ class WebSettingsManager {
             value: WebSettingsManager.defaultTheme,
             tooltip: "Custom Theme"
         },
+        command_palette_commands: {
+            value: [
+                {
+                    name: 'Go to Home',
+                    action: '() => window.location.href = "/"',
+                },
+                {
+                    name: 'Go to Settings',
+                    action: '() => window.location.href = "/settings"',
+                },
+                {
+                    name: 'Go to Boss',
+                    action: '() => window.location.href = "/boss"',
+                },
+            ],
+            tooltip: "Command Palette Commands"
+        },
         'playback_speeds':{
             value: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
             tooltip: "Playback Speeds"
