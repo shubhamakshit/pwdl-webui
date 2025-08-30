@@ -27,6 +27,7 @@ import WebSettingsManager from '@/lib/WebSettingsManager';
 import Link from 'next/link';
 import darkTheme from "@/components/theme";
 import Stack from "@mui/material/Stack";
+import { useCommandPalette } from '@/hooks/useCommandPalette';
 
 const links = [
     { label: 'HOME', href: '/', icon: <HomeIcon /> },
@@ -51,8 +52,19 @@ export default function Navbar() {
     const [drawerOpen, setDrawerOpen] = React.useState(false);
     const theme = darkTheme;
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const { openPalette } = useCommandPalette();
+    const enableEasterEgg = WebSettingsManager.getValue('enable_easter_egg');
+
 
     const toggleDrawer = () => setDrawerOpen(!drawerOpen);
+
+    const handleTitleClick = () => {
+        if (enableEasterEgg) {
+            openPalette();
+        } else {
+            window.location.href = '/';
+        }
+    };
 
     return (
         <Box>
@@ -64,7 +76,7 @@ export default function Navbar() {
                     >
                         <MenuIcon />
                     </IconButton>
-                    <Typography variant="h6" sx={{ flexGrow: 1, textAlign: 'center' }}>
+                    <Typography variant="h6" sx={{ flexGrow: 1, textAlign: 'center' }} onClick={handleTitleClick} style={{ cursor: 'pointer' }}>
                         Pwdl - Local WEBUI
                     </Typography>
                     {!isMobile && (

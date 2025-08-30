@@ -1,48 +1,70 @@
+
 "use client";
 import { useState, useEffect } from 'react';
-import {
-    Dialog,
-    DialogContent,
-    TextField,
-    List,
-    ListItemButton,
-    ListItemText,
-    InputAdornment,
-    Typography,
-    Box
-} from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
 import { useJSExecution } from '@/hooks/useJSExecution';
+import InlineCommandPalette from './InlineCommandPalette';
 
 const CommandPalette = ({ open, onClose, commands = [] }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredCommands, setFilteredCommands] = useState(commands);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const { executeJS } = useJSExecution();
+    const [inputMode, setInputMode] = useState(null); // { command, prompt }
+
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [onClose]);
 
     useEffect(() => {
         if (!open) {
             setSearchTerm('');
             setSelectedIndex(0);
+            setInputMode(null);
         }
     }, [open]);
 
     useEffect(() => {
-        const newFilteredCommands = searchTerm === ''
-            ? commands
-            : commands.filter(command =>
-                command.name.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        setFilteredCommands(newFilteredCommands);
-        setSelectedIndex(0);
-    }, [searchTerm, commands]);
+        if (inputMode) {
+            setFilteredCommands([]);
+        } else {
+            const newFilteredCommands = searchTerm === ''
+                ? commands
+                : commands.filter(command =>
+                    command.name.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+            setFilteredCommands(newFilteredCommands);
+            setSelectedIndex(0);
+        }
+    }, [searchTerm, commands, inputMode]);
 
     const handleCommandClick = (command) => {
-        command.action();
-        onClose();
+        if (command.needsInput) {
+            setInputMode({ command, prompt: command.prompt || `Enter input for ${command.name}` });
+            setSearchTerm('');
+        } else {
+            command.action();
+            onClose();
+        }
     };
 
     const handleKeyDown = (event) => {
+        if (inputMode) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                inputMode.command.action(searchTerm);
+                onClose();
+            }
+            return;
+        }
+
         if (event.key === 'ArrowDown') {
             event.preventDefault();
             setSelectedIndex((prevIndex) =>
@@ -68,72 +90,22 @@ const CommandPalette = ({ open, onClose, commands = [] }) => {
         }
     };
 
+    if (!open) {
+        return null;
+    }
+
     return (
-        <Dialog
-            open={open}
+        <InlineCommandPalette
+            searchTerm={searchTerm}
+            onSearchTermChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={handleKeyDown}
+            filteredCommands={filteredCommands}
+            selectedIndex={selectedIndex}
+            onCommandClick={handleCommandClick}
+            executeJS={executeJS}
             onClose={onClose}
-            fullWidth
-            maxWidth="sm"
-            PaperProps={{
-                sx: {
-                    position: 'fixed',
-                    top: '20%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    fontFamily: 'monospace'
-                }
-            }}
-        >
-            <DialogContent>
-                <TextField
-                    autoFocus
-                    fullWidth
-                    variant="outlined"
-                    placeholder="Enter command or JS code..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    InputProps={{
-                        startAdornment: (
-                            <InputAdornment position="start">
-                                <SearchIcon />
-                            </InputAdornment>
-                        ),
-                        sx: { fontFamily: 'monospace' }
-                    }}
-                />
-                <List>
-                    {filteredCommands.length > 0 ? (
-                        filteredCommands.map((command, index) => (
-                            <ListItemButton
-                                key={index}
-                                selected={index === selectedIndex}
-                                onClick={() => handleCommandClick(command)}
-                                sx={{
-                                    '&.Mui-selected': {
-                                        backgroundColor: 'action.selected',
-                                    },
-                                    '&.Mui-selected:hover': {
-                                        backgroundColor: 'action.selected',
-                                    }
-                                }}
-                            >
-                                <ListItemText
-                                    primary={command.name}
-                                    sx={{ fontFamily: 'monospace' }}
-                                />
-                            </ListItemButton>
-                        ))
-                    ) : (
-                        <Box sx={{ p: 2, textAlign: 'center' }}>
-                            <Typography variant="body2" color="textSecondary" sx={{ fontFamily: 'monospace' }}>
-                                No commands found. Type JS code and press Enter to execute.
-                            </Typography>
-                        </Box>
-                    )}
-                </List>
-            </DialogContent>
-        </Dialog>
+            placeholder={inputMode ? inputMode.prompt : "Enter command or JS code..."}
+        />
     );
 };
 

@@ -61,72 +61,13 @@ class WebSettingsManager {
             value: WebSettingsManager.defaultTheme,
             tooltip: "Custom Theme"
         },
-        command_palette_commands: {
-            value: [
-                {
-                    name: 'Go to Home',
-                    action: '() => window.location.href = "/"',
-                },
-                {
-                    name: 'Go to Settings',
-                    action: '() => window.location.href = "/settings"',
-                },
-                {
-                    name: 'Go to Boss',
-                    action: '() => window.location.href = "/boss"',
-                },
-            ],
-            tooltip: "Command Palette Commands"
-        },
         'playback_speeds':{
             value: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
             tooltip: "Playback Speeds"
-        }
-    };
-
-    // Initialize settingsWithTooltips with the stored values or defaults
-    static settingsWithTooltips = (() => {
-        if (typeof window !== 'undefined') {
-            const storedSettings = localStorage.getItem('settings');
-            if (storedSettings) {
-                try {
-                    const parsedSettings = JSON.parse(storedSettings);
-                    // Merge stored values with default tooltips
-                    return Object.keys(WebSettingsManager.defaultSettings).reduce((acc, key) => {
-                        acc[key] = {
-                            value: parsedSettings[key] ?? WebSettingsManager.defaultSettings[key].value,
-                            tooltip: WebSettingsManager.defaultSettings[key].tooltip
-                        };
-                        return acc;
-                    }, {});
-                } catch (error) {
-                    console.error('Error parsing stored settings:', error);
-                }
-            }
-        }
-        return {...WebSettingsManager.defaultSettings};
-    })();
-
-    static additionalUpdates = {
-        name: (newName) => {
-            if (typeof window !== 'undefined') {
-                localStorage.setItem('client-name', newName);
-            }
         },
-        login_enabled: async (login_enabled) => {
-            if (typeof window !== 'undefined' &&
-                localStorage.getItem('settings')) {
-                const currentSettings = JSON.parse(localStorage.getItem('settings'));
-                if (currentSettings['login_enabled'] !== login_enabled) {
-                    try {
-                        const response = await fetch('/api/auth/reset-token');
-                        const data = await response.json();
-                        // Handle token reset response
-                    } catch (error) {
-                        console.error('Error resetting token:', error);
-                    }
-                }
-            }
+        'enable_easter_egg': {
+            value: false,
+            tooltip: "Enable Easter Egg"
         }
     };
 
@@ -221,6 +162,52 @@ class WebSettingsManager {
         }
     }
 }
+
+// Initialize settingsWithTooltips with the stored values or defaults
+WebSettingsManager.settingsWithTooltips = (() => {
+    if (typeof window !== 'undefined') {
+        const storedSettings = localStorage.getItem('settings');
+        if (storedSettings) {
+            try {
+                const parsedSettings = JSON.parse(storedSettings);
+                // Merge stored values with default tooltips
+                return Object.keys(WebSettingsManager.defaultSettings).reduce((acc, key) => {
+                    acc[key] = {
+                        value: parsedSettings[key] ?? WebSettingsManager.defaultSettings[key].value,
+                        tooltip: WebSettingsManager.defaultSettings[key].tooltip
+                    };
+                    return acc;
+                }, {});
+            } catch (error) {
+                console.error('Error parsing stored settings:', error);
+            }
+        }
+    }
+    return {...WebSettingsManager.defaultSettings};
+})();
+
+WebSettingsManager.additionalUpdates = {
+    name: (newName) => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('client-name', newName);
+        }
+    },
+    login_enabled: async (login_enabled) => {
+        if (typeof window !== 'undefined' &&
+            localStorage.getItem('settings')) {
+            const currentSettings = JSON.parse(localStorage.getItem('settings'));
+            if (currentSettings['login_enabled'] !== login_enabled) {
+                try {
+                    const response = await fetch('/api/auth/reset-token');
+                    const data = await response.json();
+                    // Handle token reset response
+                } catch (error) {
+                    console.error('Error resetting token:', error);
+                }
+            }
+        }
+    }
+};
 
 // Initialize settings when the module is loaded
 WebSettingsManager.initialize();

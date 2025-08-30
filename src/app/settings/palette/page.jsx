@@ -19,7 +19,10 @@ const defaultPaletteCode = `
 // You have access to the following functions:
 // alert(message, severity) - shows an alert
 // snackbar(message) - shows a snackbar
-// input(title, message) - shows an input dialog and returns a Promise
+// WebSettingsManager - an object to manage application settings.
+//    - WebSettingsManager.getValue(key)
+//    - WebSettingsManager.changeValue(key, value)
+//    - WebSettingsManager.resetSettings()
 
 return [
     {
@@ -35,14 +38,55 @@ return [
         action: () => window.location.href = '/boss',
     },
     {
-        name: 'Show Alert',
-        action: async () => {
-            const name = await input('What is your name?', 'Please enter your name');
-            if (name) {
-                alert('Hello, ' + name + '!');
-            }
-        }
-    }
+        name: 'Toggle Dark Mode',
+        action: () => {
+            const currentValue = WebSettingsManager.getValue('dark_mode');
+            WebSettingsManager.changeValue('dark_mode', !currentValue);
+        },
+    },
+    {
+        name: 'Toggle Khazana',
+        action: () => {
+            const currentValue = WebSettingsManager.getValue('khazana_enabled');
+            WebSettingsManager.changeValue('khazana_enabled', !currentValue);
+        },
+    },
+    {
+        name: 'Toggle Login',
+        action: () => {
+            const currentValue = WebSettingsManager.getValue('login_enabled');
+            WebSettingsManager.changeValue('login_enabled', !currentValue);
+        },
+    },
+    {
+        name: 'Set Name',
+        action: (name) => {
+            WebSettingsManager.changeValue('name', name);
+        },
+        needsInput: true,
+        prompt: 'Enter your name',
+    },
+    {
+        name: 'Set API URL',
+        action: (url) => {
+            WebSettingsManager.changeValue('api', url);
+        },
+        needsInput: true,
+        prompt: 'Enter API URL',
+    },
+    {
+        name: 'Reset Settings',
+        action: () => {
+            WebSettingsManager.resetSettings();
+        },
+    },
+    {
+        name: 'Toggle Easter Egg',
+        action: () => {
+            const currentValue = WebSettingsManager.getValue('enable_easter_egg');
+            WebSettingsManager.changeValue('enable_easter_egg', !currentValue);
+        },
+    },
 ];
 `;
 
