@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useJSExecution } from '@/hooks/useJSExecution';
 import InlineCommandPalette from './InlineCommandPalette';
 
-const CommandPalette = ({ open, onClose, commands = [] }) => {
+const CommandPalette = ({ open, onClose, commands = [], autoFocus = true, onCommandExecuted }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredCommands, setFilteredCommands] = useState(commands);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -51,6 +51,7 @@ const CommandPalette = ({ open, onClose, commands = [] }) => {
             setSearchTerm('');
         } else {
             command.action();
+            onCommandExecuted(command);
             onClose();
         }
     };
@@ -60,6 +61,7 @@ const CommandPalette = ({ open, onClose, commands = [] }) => {
             if (event.key === 'Enter') {
                 event.preventDefault();
                 inputMode.command.action(searchTerm);
+                onCommandExecuted(inputMode.command);
                 onClose();
             }
             return;
@@ -105,6 +107,7 @@ const CommandPalette = ({ open, onClose, commands = [] }) => {
             executeJS={executeJS}
             onClose={onClose}
             placeholder={inputMode ? inputMode.prompt : "Enter command or JS code..."}
+            autoFocus={autoFocus}
         />
     );
 };

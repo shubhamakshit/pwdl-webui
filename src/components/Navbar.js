@@ -60,7 +60,7 @@ export default function Navbar() {
 
     const handleTitleClick = () => {
         if (enableEasterEgg) {
-            openPalette();
+            openPalette({ autoFocus: false });
         } else {
             window.location.href = '/';
         }

@@ -9,9 +9,12 @@ import {
     InputAdornment,
     Typography,
     Box,
-    Paper
+    Paper,
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+
 
 const InlineCommandPalette = ({
     searchTerm,
@@ -22,9 +25,12 @@ const InlineCommandPalette = ({
     onCommandClick,
     executeJS,
     onClose,
-    placeholder = "Enter command or JS code..."
+    placeholder = "Enter command or JS code...",
+    autoFocus = true
 }) => {
     const paletteRef = useRef(null);
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -45,17 +51,20 @@ const InlineCommandPalette = ({
             elevation={4}
             sx={{
                 position: 'fixed',
-                top: '20%',
+                top: '10vh',
                 left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '50%',
+                transform: 'translateX(-50%)',
+                width: isMobile ? '90vw' : '50vw',
                 maxWidth: '600px',
                 zIndex: 1300,
-                fontFamily: 'monospace'
+                fontFamily: 'monospace',
+                display: 'flex',
+                flexDirection: 'column',
+                maxHeight: '80vh',
             }}
         >
             <TextField
-                autoFocus
+                autoFocus={autoFocus}
                 fullWidth
                 variant="outlined"
                 placeholder={placeholder}
@@ -71,36 +80,38 @@ const InlineCommandPalette = ({
                     sx: { fontFamily: 'monospace' }
                 }}
             />
-            <List>
-                {filteredCommands.length > 0 ? (
-                    filteredCommands.map((command, index) => (
-                        <ListItemButton
-                            key={index}
-                            selected={index === selectedIndex}
-                            onClick={() => onCommandClick(command)}
-                            sx={{
-                                '&.Mui-selected': {
-                                    backgroundColor: 'action.selected',
-                                },
-                                '&.Mui-selected:hover': {
-                                    backgroundColor: 'action.selected',
-                                }
-                            }}
-                        >
-                            <ListItemText
-                                primary={command.name}
-                                sx={{ fontFamily: 'monospace' }}
-                            />
-                        </ListItemButton>
-                    ))
-                ) : (
-                    <Box sx={{ p: 2, textAlign: 'center' }}>
-                        <Typography variant="body2" color="textSecondary" sx={{ fontFamily: 'monospace' }}>
-                            No commands found. Type JS code and press Enter to execute.
-                        </Typography>
-                    </Box>
-                )}
-            </List>
+            <Box sx={{ overflowY: 'auto', flexGrow: 1 }}>
+                <List>
+                    {filteredCommands.length > 0 ? (
+                        filteredCommands.map((command, index) => (
+                            <ListItemButton
+                                key={index}
+                                selected={index === selectedIndex}
+                                onClick={() => onCommandClick(command)}
+                                sx={{
+                                    '&.Mui-selected': {
+                                        backgroundColor: 'action.selected',
+                                    },
+                                    '&.Mui-selected:hover': {
+                                        backgroundColor: 'action.selected',
+                                    }
+                                }}
+                            >
+                                <ListItemText
+                                    primary={command.name}
+                                    sx={{ fontFamily: 'monospace' }}
+                                />
+                            </ListItemButton>
+                        ))
+                    ) : (
+                        <Box sx={{ p: 2, textAlign: 'center' }}>
+                            <Typography variant="body2" color="textSecondary" sx={{ fontFamily: 'monospace' }}>
+                                No commands found. Type JS code and press Enter to execute.
+                            </Typography>
+                        </Box>
+                    )}
+                </List>
+            </Box>
         </Paper>
     );
 };

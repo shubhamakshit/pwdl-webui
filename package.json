@@ -22,7 +22,8 @@
     "react-ace": "^14.0.1",
     "react-dom": "^19.0.0",
     "react-draggable": "^4.5.0",
-    "react-json-tree": "^0.20.0"
+    "react-json-tree": "^0.20.0",
+    "react-window": "^2.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
