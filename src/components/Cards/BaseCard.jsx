@@ -90,7 +90,7 @@ const BaseCard = ({
     );
 
     return (
-        <Grid {...gridSize}>
+        <Grid item {...gridSize}>
             <Card
                 variant="outlined"
                 tabIndex={0}

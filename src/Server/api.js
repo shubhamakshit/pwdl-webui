@@ -180,6 +180,10 @@ class API {
 
     static GET_PVT_FILE_FOR_A_CLIENT = (client_id, name) =>
         `${API.base_url}/api/get-private-file/${client_id}/${name}`;
+
+    static GET_WEBDL_FILE = (path="") => `${API.base_url}/api/webdl/${path}`;
+
+    static DOWNLOAD_WEBDL_FILE = (path="") => `${API.base_url}/api/get/${path}`;
 }
 
 export default API;

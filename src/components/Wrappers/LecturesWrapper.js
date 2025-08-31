@@ -22,7 +22,7 @@ const TabPanel = React.forwardRef(({ children, value, index, ...other }, ref) =>
             {...other}
         >
             {value === index && (
-                <Box sx={{ pt: 3 }}>
+                <Box sx={{ pt: 3,minWidth:'80vw' }}>
                     {children}
                 </Box>
             )}
@@ -97,7 +97,7 @@ const LecturesWrapper = React.memo(({
 
     return (
         <Grid container spacing={2}>
-            <Grid item xs={12}>
+            <Grid item size={12}>
                 <Item>
                     <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                         <Tabs
@@ -121,14 +121,16 @@ const LecturesWrapper = React.memo(({
                 const currentSelectedItems = selectedItemsStates[index] || [];
 
                 return (
-                    <Grid item xs={12} key={index}>
+                    <Grid container id={"ActualData"+index} key={index} sx={{
+                        width: '100%',
+                    }}>
                         <TabPanel
                             value={tabValue}
                             index={index}
                             ref={(el) => (tabPanelRefs.current[index] = el)}
                         >
                             {currentSelectedItems.length > 0 && tab.handleDownload && (
-                                <Grid item xs={12} sx={{ mb: 2 }}>
+                                <Grid container size={12} sx={{ mb: 2 }}>
                                     <Item>
                                         <Button
                                             fullWidth

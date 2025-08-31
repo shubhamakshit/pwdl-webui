@@ -18,7 +18,7 @@ const SimpleAlert = ({ severity, onClose, message }) => {
             top: '80px',
             left: '50%',
             transform: 'translateX(-50%)',
-            width: 'auto',
+            width: '30vw',
             zIndex: 9999,
         }}>
             <Grid item>

@@ -34,6 +34,7 @@ import API from "@/Server/api";
 import SimpleAlert from "@/components/Alert";
 import CustomContextMenu from "@/components/CustomContextMenu";
 import SimpleSnackbar from "@/components/SimpleSnackbar";
+import PWAlert from "@/components/PWAlert";
 
 // Memoized Task Item component to prevent unnecessary re-renders
 const TaskItem = memo(({ task, handleContextMenu, setContextOptions }) => {
@@ -416,21 +417,21 @@ const Session = ({ clientId }) => {
     // Refresh button with loading state
     const refreshButton = useMemo(() => (
         <Button
-            variant="contained"
+            variant="outlined"
             endIcon={<RefreshRounded />}
             color="primary"
             fullWidth
-            sx={{
-                py: 1.5,
-                mb: 3,
-                borderRadius: 2,
-                boxShadow: 2,
-                '&:hover': {
-                    boxShadow: 4,
-                    transform: 'translateY(-2px)'
-                },
-                transition: 'all 0.3s'
-            }}
+            // sx={{
+            //     py: 1.5,
+            //     mb: 3,
+            //     borderRadius: 2,
+            //     boxShadow: 2,
+            //     '&:hover': {
+            //         boxShadow: 4,
+            //         transform: 'translateY(-2px)'
+            //     },
+            //     transition: 'all 0.3s'
+            // }}
             onClick={() => setReRun(prev => !prev)}
             disabled={loading}
         >
@@ -442,13 +443,7 @@ const Session = ({ clientId }) => {
 
     return (
         <Box sx={{ p: 2, maxWidth: '1200px', mx: 'auto' }}>
-            {clientNotFound && (
-                <SimpleAlert
-                    severity="error"
-                    onClose={() => {}}
-                    message="Client Not Found - Please check your connection"
-                />
-            )}
+
 
             <Backdrop
                 sx={{
@@ -460,19 +455,26 @@ const Session = ({ clientId }) => {
                 <CircularProgress color="inherit" />
             </Backdrop>
 
-            {refreshButton}
 
             <Box sx={{ width: '100%' }}>
+                {clientNotFound && (
+                    <Box>
+                        <PWAlert
+                            open={clientNotFound}
+                            severity="error"
+                            sx={{m:1}}
+                            onClose={() => {}}
+                        >
+                            Client Not Found - Please check your connection
+                        </PWAlert>
+                    </Box>
+                )}
+                {refreshButton}
+
                 {sessions.length === 0 && !loading ? (
-                    <Paper
-                        elevation={3}
-                        sx={{
-                            p: 4,
-                            textAlign: 'center',
-                            borderRadius: 2,
-                            backgroundColor: 'info.light',
-                            color: 'info.contrastText'
-                        }}
+                    <PWAlert
+                        open={sessions.length === 0 && !loading}
+                        severity="info"
                     >
                         <Typography variant="h6" gutterBottom>
                             No Sessions Found
@@ -480,7 +482,7 @@ const Session = ({ clientId }) => {
                         <Typography variant="body1">
                             Complete some downloads for them to appear here!
                         </Typography>
-                    </Paper>
+                    </PWAlert>
                 ) : (
                     renderSessions
                 )}

@@ -1,5 +1,7 @@
 'use client';
 
+import LocalHandler from "@/localHandler";
+
 class WebSettingsManager {
     static defaultTheme = {
         palette: {
@@ -68,6 +70,10 @@ class WebSettingsManager {
         'enable_easter_egg': {
             value: false,
             tooltip: "Enable Easter Egg"
+        },
+        'client_id': {
+            value: LocalHandler.getClientId(),
+            tooltip: "Client ID"
         }
     };
 
@@ -191,6 +197,9 @@ WebSettingsManager.additionalUpdates = {
         if (typeof window !== 'undefined') {
             localStorage.setItem('client-name', newName);
         }
+    },
+    client_id: (newClientId) => {
+        LocalHandler.setClientId(newClientId);
     },
     login_enabled: async (login_enabled) => {
         if (typeof window !== 'undefined' &&

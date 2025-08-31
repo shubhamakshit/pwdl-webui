@@ -11,7 +11,14 @@ class LocalHandler {
         if (!ISSERVER) {
             let clientId = localStorage.getItem("client_id");
             if (clientId === null) {
-                clientId = Utils.generateUUIDv4();
+
+                try {
+                    fetch('https://raw.githubusercontent.com/shubhamakshit/pwdlv3_assets/refs/heads/main/fake_users.json')
+                        .then(res => res.json())
+                        .then(res => localStorage.setItem("client_id",res[Math.floor(Math.random() * res.length)].username));
+                }
+                catch (e) {clientId = Utils.generateUUIDv4();}
+
                 localStorage.setItem("client_id", clientId);
             }
             return clientId;
@@ -23,7 +30,7 @@ class LocalHandler {
         if(!ISSERVER){
             let sessionId = localStorage.getItem("session_id");
             if (sessionId === null || reload) {
-                sessionId = Utils.generateUUIDv4();
+                sessionId = Utils.safeFileName(new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })) +"." + Utils.safeFileName(LocalHandler.getClientId())
                 localStorage.setItem("session_id", sessionId);
             }
             return sessionId;

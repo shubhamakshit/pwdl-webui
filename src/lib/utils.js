@@ -6,6 +6,10 @@ class Utils{
             return v.toString(16);
         });
     }
+    static safeFileName(unsafeFileName){
+         unsafeFileName = unsafeFileName.replace(/[^a-zA-Z0-9_\.-]/g, '_');
+         return unsafeFileName;
+    }
 
 
 
