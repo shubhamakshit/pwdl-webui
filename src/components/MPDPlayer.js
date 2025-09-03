@@ -517,6 +517,10 @@ const MPDPlayer = ({
     // Set crossOrigin for screenshot capability
     video.crossOrigin = 'anonymous';
 
+    player.getNetworkingEngine().registerRequestFilter(function(type, request) {
+          request.allowCrossSiteCredentials = true;
+      });
+
     player.addEventListener('error', (event) => {
       console.error('Shaka Error:', event.detail);
       
